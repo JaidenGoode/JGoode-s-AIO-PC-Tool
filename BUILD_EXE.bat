@@ -2,11 +2,25 @@
 setlocal enabledelayedexpansion
 title JGoode AIO PC Tool - Build
 
+REM ── Always run from the folder this bat file lives in ──────────────────────
+cd /d "%~dp0"
+
 echo.
 echo  ============================================
 echo   JGoode AIO PC Tool -- Windows Build Script
 echo  ============================================
 echo.
+echo  Working folder: %CD%
+echo.
+
+REM ── Verify we are in the right place ──────────────────────────────────────
+if not exist "package.json" (
+    echo  ERROR: package.json not found in this folder.
+    echo  Make sure BUILD_EXE.bat is in the root of the project folder.
+    echo.
+    pause
+    exit /b 1
+)
 
 REM ── Check Node.js ──────────────────────────────────────────────────────────
 where node >nul 2>nul
