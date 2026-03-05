@@ -1,4 +1,4 @@
-name: Build Desktop App (Windows .exe)
+name: Build Desktop App (Electron)
 
 on:
   push:
@@ -16,33 +16,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          dotnet-version: "8.0.x"
+          node-version: "20"
 
-      - name: Restore NuGet packages
-        working-directory: desktop
-        run: dotnet restore
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Build (Release)
-        working-directory: desktop
-        run: dotnet build -c Release --no-restore
+      - name: Build web app (server + client)
+        run: npm run build
 
-      - name: Publish — Self-contained single-file .exe
-        working-directory: desktop
-        run: |
-          dotnet publish -c Release -r win-x64 --self-contained true `
-            -p:PublishSingleFile=true `
-            -p:EnableCompressionInSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
-            -o ../publish/win-x64
+      - name: Install Electron build tools
+        run: npm install --no-save electron electron-builder
+
+      - name: Build Electron installer
+        run: npx electron-builder --win --x64 --config electron-builder.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List dist output
+        run: Get-ChildItem dist -Recurse -Name | Select-Object -First 30
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JGoodeAIO-Windows
-          path: publish/win-x64/JGoodeAIO.exe
+          name: JGoodeAIO-Installer
+          path: dist/*.exe
           retention-days: 30
 
       - name: Create Release (on tag)
@@ -53,18 +53,17 @@ jobs:
           body: |
             ## JGoode A.I.O PC Tool ${{ github.ref_name }}
 
-            ### Download
-            Download `JGoodeAIO.exe` below — no installation required, just run it.
+            ### How to install
+            1. Download **`JGoode AIO PC Tool Setup*.exe`** below
+            2. Run it — Windows will ask for admin permission, click **Yes**
+            3. Follow the installer, launch from Desktop shortcut
 
-            > **Run as Administrator** for tweaks to apply correctly.
-
-            ### What's included
-            - 47 PowerShell system tweaks
+            ### Features
+            - 47 PowerShell system tweaks (privacy, performance, gaming, debloat)
             - Live CPU / RAM / GPU / Disk monitoring
-            - System cleaner (temp files, DNS, network reset)
+            - System cleaner (temp files, DNS flush, network reset)
             - 13 accent colors + dark/light mode
             - GitHub settings sync
-            - Self-contained — no .NET runtime required
-          files: publish/win-x64/JGoodeAIO.exe
+          files: dist/*.exe
           draft: false
           prerelease: false
