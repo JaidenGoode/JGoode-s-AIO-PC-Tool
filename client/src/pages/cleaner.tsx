@@ -5,6 +5,7 @@ import {
   Trash2, Zap, Package, FileText, Image as ImageIcon,
   Globe, HardDrive, RotateCcw, ScanLine, Sparkles,
   CheckSquare, Square, Loader2, CheckCircle2, AlertCircle, X,
+  Cpu, RefreshCw, Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -25,6 +26,10 @@ const CAT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   browser: Globe,
   trash: RotateCcw,
   systemcache: HardDrive,
+  prefetch: Cpu,
+  wupdate: RefreshCw,
+  errorreports: AlertCircle,
+  dumpfiles: Database,
 };
 
 function UsageBar({ pct, color = "bg-primary" }: { pct: number; color?: string }) {
