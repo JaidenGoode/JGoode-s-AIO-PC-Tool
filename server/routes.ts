@@ -8,6 +8,34 @@ import { TWEAKS_SEED } from "@shared/tweaks-seed";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { exec, spawn } from "child_process";
+
+// ── PowerShell / cmd helpers ──────────────────────────────────────────────────
+function runPowerShell(script: string, timeoutMs = 20000): Promise<string> {
+  return new Promise((resolve) => {
+    const encoded = Buffer.from(script, "utf16le").toString("base64");
+    exec(
+      `powershell.exe -NonInteractive -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}`,
+      { timeout: timeoutMs },
+      (_err, stdout, stderr) => resolve((stdout || stderr || "").trim())
+    );
+  });
+}
+
+function runCmd(command: string, timeoutMs = 20000): Promise<string> {
+  return new Promise((resolve) => {
+    exec(command, { shell: true, timeout: timeoutMs, windowsHide: true },
+      (_err, stdout, stderr) => resolve((stdout || stderr || "").trim())
+    );
+  });
+}
+
+function openTerminalWithCommand(command: string): void {
+  spawn("cmd.exe", ["/c", "start", "cmd", "/k", command], {
+    detached: true,
+    stdio: "ignore",
+  });
+}
 
 // ── Seed ─────────────────────────────────────────────────────────────────────
 async function seedTweaksIfNeeded() {
@@ -173,60 +201,7 @@ function getCleanCategories(): CleanCategory[] {
     ];
   }
 
-  return [
-    {
-      id: "temp",
-      name: "Temporary Files",
-      description: "System and app temp files (/tmp)",
-      paths: ["/tmp"],
-    },
-    {
-      id: "npm",
-      name: "Package Cache",
-      description: "npm, yarn & package manager cache",
-      paths: ["~/.npm/_cacache", "~/.cache/yarn", "~/.cache/pip"],
-    },
-    {
-      id: "logs",
-      name: "Log Files",
-      description: "System and application log files",
-      paths: ["/var/log"],
-    },
-    {
-      id: "cache",
-      name: "User Cache",
-      description: "App runtime and data cache",
-      paths: ["~/.cache/dconf", "~/.cache/gstreamer-1.0", "~/.cache/fontconfig"],
-    },
-    {
-      id: "thumbnails",
-      name: "Thumbnail Cache",
-      description: "Image and video preview thumbnails",
-      paths: ["~/.cache/thumbnails"],
-    },
-    {
-      id: "browser",
-      name: "Browser Cache",
-      description: "Chromium, Firefox and browser caches",
-      paths: [
-        "~/.cache/chromium/Default/Cache",
-        "~/.cache/google-chrome/Default/Cache",
-        "~/.cache/mozilla/firefox",
-      ],
-    },
-    {
-      id: "trash",
-      name: "Trash / Recycle Bin",
-      description: "Files waiting in the recycle bin",
-      paths: ["~/.local/share/Trash/files"],
-    },
-    {
-      id: "systemcache",
-      name: "System Package Cache",
-      description: "apt, yum and OS package cache",
-      paths: ["/var/cache/apt/archives", "/var/cache/yum"],
-    },
-  ];
+  return [];
 }
 
 const CLEAN_CATEGORIES: CleanCategory[] = getCleanCategories();
@@ -309,12 +284,12 @@ export async function registerRoutes(
   // ── Live System Usage (CPU %, RAM %, GPU %) ────────────────────────────────
   app.get("/api/system/usage", async (_req, res) => {
     try {
-      const [load, mem, graphics, fsSize, netStats] = await Promise.all([
+      const [load, mem, graphics, fsSize, diskIO] = await Promise.all([
         si.currentLoad(),
         si.mem(),
         si.graphics(),
         si.fsSize(),
-        si.networkStats().catch(() => [] as si.Systeminformation.NetworkStatsData[]),
+        si.fsStats().catch(() => null as si.Systeminformation.FsStatsData | null),
       ]);
 
       const controllers = graphics.controllers || [];
@@ -325,11 +300,9 @@ export async function registerRoutes(
 
       const rootFs =
         fsSize.find((f) => f.mount === "C:" || f.mount === "/") || fsSize[0];
-      const diskUsePct = rootFs
-        ? Math.round((rootFs.use || 0))
-        : 0;
+      const diskUsePct = rootFs ? Math.round(rootFs.use || 0) : 0;
 
-      const netStat = (netStats as si.Systeminformation.NetworkStatsData[])[0];
+      const gpuTemp = (gpu as any)?.temperatureGpu;
 
       res.json({
         cpu: {
@@ -338,18 +311,18 @@ export async function registerRoutes(
         },
         ram: {
           usage: Math.round(((mem.active || 0) / (mem.total || 1)) * 100),
-          usedGb: parseFloat((((mem.active || 0) / 1024 ** 3)).toFixed(1)),
+          usedGb: parseFloat(((mem.active || 0) / 1024 ** 3).toFixed(1)),
           totalGb: parseFloat(((mem.total || 0) / 1024 ** 3).toFixed(1)),
         },
         gpu: {
           usage: (gpu as any)?.utilizationGpu ?? null,
           model: gpu?.model || null,
-          temp: (gpu as any)?.temperatureGpu || null,
+          temp: gpuTemp && gpuTemp > 0 ? Math.round(gpuTemp) : null,
         },
         disk: {
           usage: diskUsePct,
-          readMb: netStat ? Math.round((netStat.rx_sec || 0) / 1024) : 0,
-          writeMb: netStat ? Math.round((netStat.tx_sec || 0) / 1024) : 0,
+          readMb: diskIO ? parseFloat(((diskIO.rx_sec || 0) / 1024 / 1024).toFixed(1)) : 0,
+          writeMb: diskIO ? parseFloat(((diskIO.wx_sec || 0) / 1024 / 1024).toFixed(1)) : 0,
         },
       });
     } catch {
@@ -365,23 +338,58 @@ export async function registerRoutes(
   // ── Temperatures ───────────────────────────────────────────────────────────
   app.get("/api/system/temps", async (_req, res) => {
     try {
+      const isValidTemp = (t: unknown): t is number =>
+        typeof t === "number" && isFinite(t) && t > 10 && t < 115;
+
       const [cpuTemp, graphics] = await Promise.all([
         si.cpuTemperature(),
         si.graphics(),
       ]);
+
       const controllers = graphics.controllers || [];
       const gpu =
         controllers.find((c) =>
           /nvidia|amd|radeon/i.test(c.vendor || c.model || "")
         ) || controllers[0];
+
+      let cpuCurrent: number | null = null;
+      let cpuMax: number | null = null;
+
+      if (isValidTemp(cpuTemp.main)) {
+        cpuCurrent = Math.round(cpuTemp.main);
+      } else if (cpuTemp.socket?.length) {
+        const valid = cpuTemp.socket.filter(isValidTemp);
+        if (valid.length) cpuCurrent = Math.round(Math.max(...valid));
+      }
+      if (!cpuCurrent && cpuTemp.cores?.length) {
+        const valid = cpuTemp.cores.filter(isValidTemp);
+        if (valid.length) cpuCurrent = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
+      }
+      if (isValidTemp(cpuTemp.max)) cpuMax = Math.round(cpuTemp.max);
+
+      if (cpuCurrent === null && process.platform === "win32") {
+        const psScript = `
+try {
+  $tz = Get-WmiObject MSAcpi_ThermalZoneTemperature -Namespace "root/wmi" -ErrorAction SilentlyContinue
+  if ($tz) {
+    $readings = @($tz) | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15, 0) } | Where-Object { $_ -gt 10 -and $_ -lt 115 }
+    if ($readings) { ($readings | Sort-Object -Descending)[0] }
+  }
+} catch {}`;
+        const output = await runPowerShell(psScript, 6000).catch(() => "");
+        const parsed = parseFloat(output.trim());
+        if (isValidTemp(parsed)) cpuCurrent = Math.round(parsed);
+      }
+
       const gpuTemp = (gpu as any)?.temperatureGpu ?? null;
+
       res.json({
         cpu: {
-          current: cpuTemp.main > 0 ? Math.round(cpuTemp.main) : null,
-          max: cpuTemp.max > 0 ? Math.round(cpuTemp.max) : null,
+          current: cpuCurrent,
+          max: cpuMax,
         },
         gpu: {
-          current: gpuTemp != null && gpuTemp > 0 ? Math.round(gpuTemp) : null,
+          current: isValidTemp(gpuTemp) ? Math.round(gpuTemp) : null,
         },
       });
     } catch {
@@ -523,6 +531,29 @@ export async function registerRoutes(
       };
 
       await storage.setSetting("dns_provider", provider);
+
+      if (process.platform === "win32") {
+        const dnsInfo = dns[provider];
+        let psScript: string;
+        if (provider === "default") {
+          psScript = `
+$adapters = Get-NetAdapter | Where-Object {$_.Status -eq 'Up'}
+foreach ($a in $adapters) {
+  Set-DnsClientServerAddress -InterfaceAlias $a.Name -ResetServerAddresses
+}
+Write-Host "DNS reset to automatic (DHCP) on all active adapters."`;
+        } else {
+          psScript = `
+$adapters = Get-NetAdapter | Where-Object {$_.Status -eq 'Up'}
+foreach ($a in $adapters) {
+  Set-DnsClientServerAddress -InterfaceAlias $a.Name -ServerAddresses ('${dnsInfo.primary}','${dnsInfo.secondary}')
+}
+Write-Host "DNS set to ${provider} (${dnsInfo.primary} / ${dnsInfo.secondary}) on all active adapters."`;
+        }
+        const output = await runPowerShell(psScript, 15000);
+        return res.json({ success: true, provider, ...dnsInfo, output });
+      }
+
       res.json({ success: true, provider, ...dns[provider] });
     } catch (err) {
       if (err instanceof z.ZodError)
@@ -536,12 +567,34 @@ export async function registerRoutes(
     try {
       const { name } = z.object({ name: z.string().min(1) }).parse(req.body);
       const timestamp = new Date().toISOString();
+
+      if (process.platform === "win32") {
+        const safeName = name.replace(/'/g, "''");
+        const psScript = `
+Enable-ComputerRestore -Drive "C:\\"
+Checkpoint-Computer -Description '${safeName}' -RestorePointType 'MODIFY_SETTINGS'
+Write-Host "Restore point created successfully."`;
+        const output = await runPowerShell(psScript, 30000);
+        const failed = /error|exception|access.?denied|cannot/i.test(output) && !/successfully/i.test(output);
+        if (failed) {
+          return res.status(500).json({
+            message: `Failed to create restore point: ${output || "Administrator privileges required."}`,
+          });
+        }
+        return res.json({
+          success: true,
+          name,
+          timestamp,
+          message: `Restore point "${name}" created successfully.`,
+          output,
+        });
+      }
+
       res.json({
         success: true,
         name,
         timestamp,
-        command: `powershell -Command "Checkpoint-Computer -Description '${name}' -RestorePointType 'MODIFY_SETTINGS'"`,
-        message: `Restore point "${name}" created. Run as Administrator for full effect.`,
+        message: `Restore point "${name}" queued. Run as Administrator on Windows.`,
       });
     } catch (err) {
       if (err instanceof z.ZodError)
@@ -551,13 +604,17 @@ export async function registerRoutes(
   });
 
   app.get("/api/restore/list", async (_req, res) => {
-    res.json({
-      command:
-        'powershell -Command "Get-ComputerRestorePoint | Select-Object Description, CreationTime | Format-Table"',
-      message:
-        "Run this command in PowerShell as Administrator to list restore points.",
-      points: [],
-    });
+    if (process.platform === "win32") {
+      const psScript = `Get-ComputerRestorePoint | Select-Object Description, CreationTime | ConvertTo-Json -Compress`;
+      const output = await runPowerShell(psScript, 10000);
+      try {
+        const points = JSON.parse(output);
+        return res.json({ points: Array.isArray(points) ? points : [points] });
+      } catch {
+        return res.json({ points: [] });
+      }
+    }
+    res.json({ points: [] });
   });
 
   // ── Utilities ──────────────────────────────────────────────────────────────
@@ -583,7 +640,7 @@ export async function registerRoutes(
         "release-ip": { name: "Release IP Address", command: "ipconfig /release", description: "Releases the current IP address from DHCP." },
         "renew-ip": { name: "Renew IP Address", command: "ipconfig /renew", description: "Requests a new IP address from DHCP." },
         "restart-explorer": { name: "Restart Explorer", command: "taskkill /f /im explorer.exe && start explorer.exe", description: "Restarts Windows Explorer process." },
-        "disk-cleanup": { name: "Disk Cleanup", command: "cleanmgr /sagerun:1", description: "Runs Windows built-in Disk Cleanup utility." },
+        "disk-cleanup": { name: "Disk Cleanup", command: "cleanmgr", description: "Runs Windows built-in Disk Cleanup utility." },
         "storage-sense-on": { name: "Enable Storage Sense", command: 'reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\StorageSense" /v "AllowStorageSenseGlobal" /t REG_DWORD /d 1 /f', description: "Enables Storage Sense automatic cleanup." },
         "storage-sense-off": { name: "Disable Storage Sense", command: 'reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\StorageSense" /v "AllowStorageSenseGlobal" /t REG_DWORD /d 0 /f', description: "Disables Storage Sense automatic cleanup." },
         "fast-startup-on": { name: "Enable Fast Startup", command: 'powercfg /h on && reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power" /v HiberbootEnabled /t REG_DWORD /d 1 /f', description: "Enables Fast Startup (hybrid boot)." },
@@ -595,7 +652,30 @@ export async function registerRoutes(
         "open-system-restore": { name: "Open System Restore", command: "rstrui.exe", description: "Opens the Windows System Restore wizard." },
       };
 
-      res.json({ success: true, action, ...commands[action] });
+      const info = commands[action];
+
+      if (process.platform !== "win32") {
+        return res.json({ success: true, action, ...info, output: "Windows only." });
+      }
+
+      const TERMINAL_ACTIONS = new Set([
+        "sfc", "dism", "checkdisk", "network-reset", "restart-explorer",
+      ]);
+      const GUI_ACTIONS = new Set(["open-system-restore", "disk-cleanup"]);
+
+      if (GUI_ACTIONS.has(action)) {
+        spawn(info.command, [], { detached: true, stdio: "ignore", shell: true });
+        return res.json({ success: true, action, ...info, output: "Launched." });
+      }
+
+      if (TERMINAL_ACTIONS.has(action)) {
+        openTerminalWithCommand(info.command);
+        return res.json({ success: true, action, ...info, output: "Opened in new terminal window." });
+      }
+
+      const output = await runCmd(info.command, 20000);
+      return res.json({ success: true, action, ...info, output: output || "Done." });
+
     } catch (err) {
       if (err instanceof z.ZodError)
         return res.status(400).json({ message: err.errors[0].message });

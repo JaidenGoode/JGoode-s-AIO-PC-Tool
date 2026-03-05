@@ -71,9 +71,10 @@ export default function Utilities() {
   const [showSystemInfo, setShowSystemInfo] = useState(false);
 
   const utilityMutation = useMutation({
-    mutationFn: (action: string) => runUtility(action) as Promise<{ name: string; description: string; message?: string }>,
+    mutationFn: (action: string) => runUtility(action) as Promise<{ name: string; description: string; output?: string; message?: string }>,
     onSuccess: (data) => {
-      toast({ title: data.name || "Done", description: data.description || data.message || "Command ready to run as Administrator." });
+      const desc = data.output && data.output !== "Done." ? data.output : data.description;
+      toast({ title: data.name || "Done", description: desc || data.message || "" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });

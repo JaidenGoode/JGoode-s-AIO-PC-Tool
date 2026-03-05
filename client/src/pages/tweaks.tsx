@@ -348,7 +348,7 @@ export default function Tweaks() {
                       <div className="flex items-center gap-1.5">
                         {cmd && (
                           <button
-                            onClick={() => setViewingCmd({ title: tweak.title, cmd: tweak.isActive ? cmd.enable : cmd.enable })}
+                            onClick={() => setViewingCmd({ title: tweak.title, cmd: tweak.isActive ? cmd.disable : cmd.enable })}
                             className="flex items-center gap-1 text-[9.5px] font-medium px-1.5 py-0.5 rounded border border-border/40 bg-secondary/50 hover:border-primary/30 hover:bg-primary/8 text-muted-foreground hover:text-primary transition-all duration-150"
                             data-testid={`button-view-cmd-${tweak.id}`}
                           >

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { SiGithub } from "react-icons/si";
 import {
   GitBranch, Upload, RefreshCw, CheckCircle2, AlertCircle,
@@ -37,6 +37,8 @@ interface PushResult {
   errors: string[];
 }
 
+const isElectron = typeof navigator !== "undefined" && navigator.userAgent.includes("Electron");
+
 export default function GitHub() {
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [selectedRepo, setSelectedRepo] = useState<string>("");
@@ -47,6 +49,7 @@ export default function GitHub() {
 
   const { data: user, isLoading: userLoading, error: userError } = useQuery<GitHubUser>({
     queryKey: ["/api/github/user"],
+    enabled: !isElectron,
   });
 
   const { data: repos, isLoading: reposLoading } = useQuery<GitHubRepo[]>({
@@ -83,6 +86,37 @@ export default function GitHub() {
       });
     },
   });
+
+  if (isElectron) {
+    return (
+      <div className="space-y-5 pb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            GitHub <span className="text-primary">Push</span>
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Push this project to your GitHub repository</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-5">
+          <div className="p-5 rounded-full bg-secondary/60 border border-border/50">
+            <SiGithub className="h-10 w-10 text-muted-foreground/40" />
+          </div>
+          <div className="space-y-2 max-w-sm">
+            <p className="text-sm font-bold text-foreground">Desktop App Mode</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              GitHub integration requires the Replit development environment for OAuth authentication.
+              Open this project in Replit to push source files to GitHub.
+            </p>
+          </div>
+          <div className="px-4 py-3 rounded-xl border border-border/40 bg-secondary/30 text-xs text-muted-foreground/60 max-w-sm text-left space-y-1">
+            <p className="font-semibold text-foreground/50">To use GitHub Push:</p>
+            <p>1. Open the project at <span className="font-mono text-primary/70">replit.com</span></p>
+            <p>2. Connect your GitHub account via the Integrations panel</p>
+            <p>3. Use the GitHub page to push source files</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (userError) {
     return (
