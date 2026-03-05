@@ -199,6 +199,25 @@ function getCleanCategories(): CleanCategory[] {
           "C:\\Windows\\Logs\\DISM",
         ],
       },
+      {
+        id: "shadercache",
+        name: "DirectX Shader Cache",
+        description: "DirectX 12 and GPU vendor shader caches built by games and apps (rebuilt automatically on next launch)",
+        paths: [
+          path.join(local, "D3DSCache"),
+          path.join(local, "Microsoft", "DirectX Shader Cache"),
+          path.join(local, "NVIDIA", "DXCache"),
+          path.join(local, "NVIDIA Corporation", "NV_Cache"),
+          path.join(local, "AMD", "DXCache"),
+          path.join(local, "Intel", "ShaderCache"),
+        ],
+      },
+      {
+        id: "recycle",
+        name: "Recycle Bin",
+        description: "Files sitting in the Windows Recycle Bin across all drives",
+        paths: [],
+      },
     ];
   }
 
@@ -462,15 +481,36 @@ if ($result) { $result }`;
         CLEAN_CATEGORIES.map(async (cat) => {
           let totalSize = 0;
           let totalCount = 0;
-          for (const p of cat.paths) {
-            const expanded = expandPath(p);
-            try {
-              await fs.promises.access(expanded);
-              const { size, count } = await getDirSize(expanded);
-              totalSize += size;
-              totalCount += count;
-            } catch {}
+
+          if (cat.id === "recycle" && process.platform === "win32") {
+            const psOut = await runPowerShell(`
+$size = 0; $count = 0
+$drives = Get-PSDrive -PSProvider FileSystem -EA SilentlyContinue | Select-Object -ExpandProperty Root
+foreach ($drive in $drives) {
+  $rb = Join-Path $drive '$Recycle.Bin'
+  if (Test-Path $rb) {
+    $items = Get-ChildItem $rb -Recurse -Force -EA SilentlyContinue | Where-Object { !$_.PSIsContainer }
+    $s = ($items | Measure-Object -Property Length -Sum -EA SilentlyContinue).Sum
+    if ($s) { $size += $s }
+    $count += $items.Count
+  }
+}
+"$size $count"`, 12000).catch(() => "0 0");
+            const parts = psOut.trim().split(/\s+/);
+            totalSize = Math.max(0, parseInt(parts[0]) || 0);
+            totalCount = Math.max(0, parseInt(parts[1]) || 0);
+          } else {
+            for (const p of cat.paths) {
+              const expanded = expandPath(p);
+              try {
+                await fs.promises.access(expanded);
+                const { size, count } = await getDirSize(expanded);
+                totalSize += size;
+                totalCount += count;
+              } catch {}
+            }
           }
+
           return {
             id: cat.id,
             name: cat.name,
@@ -513,16 +553,35 @@ if ($result) { $result }`;
         let freed = 0;
 
         const isWupdate = id === "wupdate" && process.platform === "win32";
+        const isRecycle = id === "recycle" && process.platform === "win32";
+
         if (isWupdate) {
           await runCmd("net stop wuauserv 2>nul", 8000).catch(() => {});
         }
 
-        for (const p of cat.paths) {
-          const expanded = expandPath(p);
-          try {
-            await fs.promises.access(expanded);
-            freed += await deleteContents(expanded);
-          } catch {}
+        if (isRecycle) {
+          // Measure size first, then empty via PowerShell
+          const sizeOut = await runPowerShell(`
+$size = 0
+$drives = Get-PSDrive -PSProvider FileSystem -EA SilentlyContinue | Select-Object -ExpandProperty Root
+foreach ($drive in $drives) {
+  $rb = Join-Path $drive '$Recycle.Bin'
+  if (Test-Path $rb) {
+    $s = (Get-ChildItem $rb -Recurse -Force -EA SilentlyContinue | Where-Object { !$_.PSIsContainer } | Measure-Object -Property Length -Sum -EA SilentlyContinue).Sum
+    if ($s) { $size += $s }
+  }
+}
+$size`, 12000).catch(() => "0");
+          freed = Math.max(0, parseInt(sizeOut.trim()) || 0);
+          await runPowerShell(`Clear-RecycleBin -Force -ErrorAction SilentlyContinue`, 15000).catch(() => {});
+        } else {
+          for (const p of cat.paths) {
+            const expanded = expandPath(p);
+            try {
+              await fs.promises.access(expanded);
+              freed += await deleteContents(expanded);
+            } catch {}
+          }
         }
 
         if (isWupdate) {
