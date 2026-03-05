@@ -74,7 +74,12 @@ async function deleteContents(dirPath: string): Promise<number> {
         const full = path.join(dirPath, item);
         try {
           const stat = await fs.promises.lstat(full);
-          freed += stat.isDirectory() ? 0 : stat.size;
+          if (stat.isDirectory()) {
+            const sub = await getDirSize(full);
+            freed += sub.size;
+          } else {
+            freed += stat.size;
+          }
           await fs.promises.rm(full, { recursive: true, force: true });
         } catch {}
       })
@@ -158,10 +163,11 @@ function getCleanCategories(): CleanCategory[] {
       {
         id: "logs",
         name: "Log Files",
-        description: "Windows and application log files",
+        description: "Windows system and CBS log files",
         paths: [
-          path.join(local, "Temp"),
           "C:\\Windows\\Logs\\CBS",
+          "C:\\Windows\\Logs\\DISM",
+          path.join(local, "Microsoft", "Windows", "PowerShell", "StartupProfileData-NonInteractive"),
         ],
       },
     ];
