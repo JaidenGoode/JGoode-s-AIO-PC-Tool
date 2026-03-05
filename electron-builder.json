@@ -3,6 +3,7 @@
   "productName": "JGoode AIO PC Tool",
   "copyright": "Copyright © 2025 JaidenGoode",
   "electronVersion": "33.4.11",
+  "npmRebuild": false,
   "asar": true,
   "asarUnpack": [
     "dist/public/**/*"
