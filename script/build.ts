@@ -1,6 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
+import path from "path";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -39,10 +40,33 @@ const allowlist = [
 ];
 
 async function buildAll() {
+  const cwd = process.cwd();
+
   await rm("dist", { recursive: true, force: true });
 
   console.log("building client...");
-  await viteBuild();
+
+  const react = (await import("@vitejs/plugin-react")).default;
+
+  // Pass configFile: false + all options explicitly so the build never
+  // depends on vite.config.ts path-resolution (which breaks on Windows CI
+  // because esbuild cannot handle top-level await in CJS mode).
+  await viteBuild({
+    configFile: false,
+    root: path.resolve(cwd, "client"),
+    resolve: {
+      alias: {
+        "@": path.resolve(cwd, "client", "src"),
+        "@shared": path.resolve(cwd, "shared"),
+        "@assets": path.resolve(cwd, "attached_assets"),
+      },
+    },
+    plugins: [react()],
+    build: {
+      outDir: path.resolve(cwd, "dist/public"),
+      emptyOutDir: true,
+    },
+  });
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
