@@ -19,7 +19,7 @@
   ],
   "win": {
     "target": [{ "target": "nsis", "arch": ["x64"] }],
-    "icon": "electron/icon.png",
+    "icon": "electron/icon.ico",
     "requestedExecutionLevel": "requireAdministrator"
   },
   "nsis": {
@@ -27,6 +27,8 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "JGoode AIO PC Tool"
+    "shortcutName": "JGoode AIO PC Tool",
+    "installerIcon": "electron/icon.ico",
+    "uninstallerIcon": "electron/icon.ico"
   }
 }
