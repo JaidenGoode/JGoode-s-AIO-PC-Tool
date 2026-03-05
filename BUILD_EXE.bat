@@ -96,5 +96,5 @@ echo   Run it as Administrator to install.
 echo  ============================================
 echo.
 
-explorer release
+start "" "%CD%\release"
 pause
