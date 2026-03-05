@@ -271,7 +271,7 @@ export async function registerRoutes(
       const ramType =
         memTypes.length > 0
           ? [...new Set(memTypes)].join("/")
-          : mem.type || "Unknown";
+          : "Unknown";
 
       const primaryDisk = disk[0];
       const rootFs =

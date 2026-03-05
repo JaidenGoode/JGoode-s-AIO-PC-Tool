@@ -27,7 +27,25 @@ export interface GitHubUser {
 
 async function ghProxy(endpoint: string, options: RequestInit = {}) {
   if (!connectors) throw new Error(DESKTOP_ERROR);
-  return connectors.proxy("github", endpoint, options);
+
+  const headers: Record<string, string> = {};
+  if (options.headers instanceof Headers) {
+    options.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+  } else if (Array.isArray(options.headers)) {
+    for (const [key, value] of options.headers) {
+      headers[key] = value;
+    }
+  } else if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+
+  return connectors.proxy("github", endpoint, {
+    method: options.method,
+    body: options.body,
+    headers,
+  });
 }
 
 async function ghJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
