@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
 const http = require("http");
 
@@ -15,6 +15,11 @@ function startServer() {
     console.log("[electron] Server module loaded on port", PORT);
   } catch (err) {
     console.error("[electron] Failed to load server:", err);
+    dialog.showErrorBox(
+      "JGoode A.I.O PC Tool — Startup Error",
+      `The application server failed to start.\n\nError: ${err.message}\n\nPlease reinstall the application or run as Administrator.`
+    );
+    app.quit();
   }
 }
 
@@ -26,8 +31,11 @@ function waitForServer(callback, tries = 0) {
     if (tries < 60) {
       setTimeout(() => waitForServer(callback, tries + 1), 500);
     } else {
-      console.error("[electron] Server never became ready — opening anyway");
-      callback();
+      dialog.showErrorBox(
+        "JGoode A.I.O PC Tool — Server Timeout",
+        "The internal server did not respond after 30 seconds.\n\nTry running the application as Administrator, or reinstall."
+      );
+      app.quit();
     }
   });
   req.setTimeout(400, () => {
@@ -35,7 +43,11 @@ function waitForServer(callback, tries = 0) {
     if (tries < 60) {
       setTimeout(() => waitForServer(callback, tries + 1), 500);
     } else {
-      callback();
+      dialog.showErrorBox(
+        "JGoode A.I.O PC Tool — Server Timeout",
+        "The internal server did not respond after 30 seconds.\n\nTry running the application as Administrator, or reinstall."
+      );
+      app.quit();
     }
   });
 }
@@ -71,6 +83,12 @@ function createWindow() {
     return { action: "deny" };
   });
 
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription) => {
+    if (errorCode === -102 || errorCode === -105) return;
+    console.error("[electron] Page failed to load:", errorCode, errorDescription);
+    setTimeout(() => mainWindow?.loadURL(`http://127.0.0.1:${PORT}`), 1000);
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -85,10 +103,6 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   app.quit();
-});
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
 ipcMain.on("window-minimize", () => mainWindow?.minimize());
