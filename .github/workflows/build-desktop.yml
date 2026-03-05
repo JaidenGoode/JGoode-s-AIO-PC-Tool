@@ -20,6 +20,10 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Fix Python distutils for node-gyp
+        run: python -m pip install setuptools
+        shell: cmd
+
       - name: Install dependencies
         run: npm install
 
