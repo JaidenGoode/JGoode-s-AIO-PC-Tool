@@ -484,18 +484,14 @@ if ($result) { $result }`;
 
           if (cat.id === "recycle" && process.platform === "win32") {
             const psOut = await runPowerShell(`
-$size = 0; $count = 0
-$drives = Get-PSDrive -PSProvider FileSystem -EA SilentlyContinue | Select-Object -ExpandProperty Root
-foreach ($drive in $drives) {
-  $rb = Join-Path $drive '$Recycle.Bin'
-  if (Test-Path $rb) {
-    $items = Get-ChildItem $rb -Recurse -Force -EA SilentlyContinue | Where-Object { !$_.PSIsContainer }
-    $s = ($items | Measure-Object -Property Length -Sum -EA SilentlyContinue).Sum
-    if ($s) { $size += $s }
-    $count += $items.Count
-  }
-}
-"$size $count"`, 12000).catch(() => "0 0");
+try {
+  $shell = New-Object -ComObject Shell.Application -EA Stop
+  $bin = $shell.Namespace(10)
+  $items = @($bin.Items())
+  [long]$size = 0
+  foreach ($item in $items) { try { $size += [long]$item.Size } catch {} }
+  "$size $($items.Count)"
+} catch { "0 0" }`, 12000).catch(() => "0 0");
             const parts = psOut.trim().split(/\s+/);
             totalSize = Math.max(0, parseInt(parts[0]) || 0);
             totalCount = Math.max(0, parseInt(parts[1]) || 0);
@@ -560,18 +556,16 @@ foreach ($drive in $drives) {
         }
 
         if (isRecycle) {
-          // Measure size first, then empty via PowerShell
+          // Use Shell COM to measure size (file system access to $Recycle.Bin is blocked by Windows)
           const sizeOut = await runPowerShell(`
-$size = 0
-$drives = Get-PSDrive -PSProvider FileSystem -EA SilentlyContinue | Select-Object -ExpandProperty Root
-foreach ($drive in $drives) {
-  $rb = Join-Path $drive '$Recycle.Bin'
-  if (Test-Path $rb) {
-    $s = (Get-ChildItem $rb -Recurse -Force -EA SilentlyContinue | Where-Object { !$_.PSIsContainer } | Measure-Object -Property Length -Sum -EA SilentlyContinue).Sum
-    if ($s) { $size += $s }
-  }
-}
-$size`, 12000).catch(() => "0");
+try {
+  $shell = New-Object -ComObject Shell.Application -EA Stop
+  $bin = $shell.Namespace(10)
+  $items = @($bin.Items())
+  [long]$size = 0
+  foreach ($item in $items) { try { $size += [long]$item.Size } catch {} }
+  $size
+} catch { 0 }`, 12000).catch(() => "0");
           freed = Math.max(0, parseInt(sizeOut.trim()) || 0);
           await runPowerShell(`Clear-RecycleBin -Force -ErrorAction SilentlyContinue`, 15000).catch(() => {});
         } else {
