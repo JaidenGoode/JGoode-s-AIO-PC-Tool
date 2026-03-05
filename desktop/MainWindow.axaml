@@ -6,6 +6,7 @@
         x:Class="JGoodeAIO.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="JGoode A.I.O PC Tool"
+        Icon="avares://JGoodeAIO/Assets/icon.png"
         Width="1200" Height="780"
         MinWidth="920" MinHeight="600"
         ExtendClientAreaToDecorationsHint="True"
