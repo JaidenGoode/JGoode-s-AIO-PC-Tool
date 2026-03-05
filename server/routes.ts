@@ -339,14 +339,13 @@ export async function registerRoutes(
   // ── Temperatures ───────────────────────────────────────────────────────────
   app.get("/api/system/temps", async (_req, res) => {
     try {
-      const isValidTemp = (t: unknown): t is number =>
-        typeof t === "number" && isFinite(t) && t > 10 && t < 115;
+      // CPU must be >= 30°C — anything lower is an ambient/case sensor, not the CPU package
+      const isValidCpuTemp = (t: unknown): t is number =>
+        typeof t === "number" && isFinite(t) && t >= 30 && t < 115;
+      const isValidGpuTemp = (t: unknown): t is number =>
+        typeof t === "number" && isFinite(t) && t >= 20 && t < 120;
 
-      const [cpuTemp, graphics] = await Promise.all([
-        si.cpuTemperature(),
-        si.graphics(),
-      ]);
-
+      const graphics = await si.graphics();
       const controllers = graphics.controllers || [];
       const gpu =
         controllers.find((c) =>
@@ -356,42 +355,81 @@ export async function registerRoutes(
       let cpuCurrent: number | null = null;
       let cpuMax: number | null = null;
 
-      if (isValidTemp(cpuTemp.main)) {
-        cpuCurrent = Math.round(cpuTemp.main);
-      } else if (cpuTemp.socket?.length) {
-        const valid = cpuTemp.socket.filter(isValidTemp);
-        if (valid.length) cpuCurrent = Math.round(Math.max(...valid));
-      }
-      if (!cpuCurrent && cpuTemp.cores?.length) {
-        const valid = cpuTemp.cores.filter(isValidTemp);
-        if (valid.length) cpuCurrent = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
-      }
-      if (isValidTemp(cpuTemp.max)) cpuMax = Math.round(cpuTemp.max);
-
-      if (cpuCurrent === null && process.platform === "win32") {
+      // On Windows: try PowerShell methods first in priority order.
+      // systeminformation can only read CPU package temp on Linux/Mac reliably.
+      if (process.platform === "win32") {
         const psScript = `
-try {
-  $tz = Get-WmiObject MSAcpi_ThermalZoneTemperature -Namespace "root/wmi" -ErrorAction SilentlyContinue
-  if ($tz) {
-    $readings = @($tz) | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15, 0) } | Where-Object { $_ -gt 10 -and $_ -lt 115 }
-    if ($readings) { ($readings | Sort-Object -Descending)[0] }
-  }
-} catch {}`;
-        const output = await runPowerShell(psScript, 6000).catch(() => "");
+$result = $null
+
+# Method 1: LibreHardwareMonitor WMI — most accurate, requires LHM installed/running
+if (-not $result) {
+  try {
+    $sensors = Get-WmiObject -Namespace "root/LibreHardwareMonitor" -Class Sensor -EA Stop |
+      Where-Object { $_.SensorType -eq "Temperature" -and $_.Name -match "CPU Package|CPU Core|CPU Total|Core #" }
+    if ($sensors) {
+      $vals = @($sensors) | ForEach-Object { [math]::Round($_.Value, 0) } | Where-Object { $_ -ge 30 -and $_ -lt 115 }
+      if ($vals) { $result = ($vals | Measure-Object -Maximum).Maximum }
+    }
+  } catch {}
+}
+
+# Method 2: OpenHardwareMonitor WMI — accurate, requires OHM installed/running
+if (-not $result) {
+  try {
+    $sensors = Get-WmiObject -Namespace "root/OpenHardwareMonitor" -Class Sensor -EA Stop |
+      Where-Object { $_.SensorType -eq "Temperature" -and $_.Name -match "CPU Package|CPU Core|CPU Total|Core #" }
+    if ($sensors) {
+      $vals = @($sensors) | ForEach-Object { [math]::Round($_.Value, 0) } | Where-Object { $_ -ge 30 -and $_ -lt 115 }
+      if ($vals) { $result = ($vals | Measure-Object -Maximum).Maximum }
+    }
+  } catch {}
+}
+
+# Method 3: MSAcpi — filter to CPU-labelled zones first, fall back to all zones
+if (-not $result) {
+  try {
+    $zones = Get-WmiObject MSAcpi_ThermalZoneTemperature -Namespace "root/wmi" -EA Stop
+    $cpuZones = @($zones) | Where-Object { $_.InstanceName -match "CPU|PROC|CPUZ|CpuPackage|TZ0[01]" }
+    if (-not $cpuZones -or $cpuZones.Count -eq 0) { $cpuZones = @($zones) }
+    $vals = $cpuZones | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15, 0) } | Where-Object { $_ -ge 30 -and $_ -lt 115 }
+    if ($vals) { $result = ($vals | Sort-Object -Descending)[0] }
+  } catch {}
+}
+
+if ($result) { $result }`;
+        const output = await runPowerShell(psScript, 12000).catch(() => "");
         const parsed = parseFloat(output.trim());
-        if (isValidTemp(parsed)) cpuCurrent = Math.round(parsed);
+        if (isValidCpuTemp(parsed)) cpuCurrent = Math.round(parsed);
+      }
+
+      // Fallback: systeminformation (works on Linux/Mac, rarely on Windows)
+      if (cpuCurrent === null) {
+        const cpuTemp = await si.cpuTemperature().catch(() => ({
+          main: null as number | null,
+          socket: [] as number[],
+          cores: [] as number[],
+          max: null as number | null,
+        }));
+        if (isValidCpuTemp(cpuTemp.main)) {
+          cpuCurrent = Math.round(cpuTemp.main);
+        } else if (cpuTemp.socket?.length) {
+          const valid = (cpuTemp.socket as number[]).filter(isValidCpuTemp);
+          if (valid.length) cpuCurrent = Math.round(Math.max(...valid));
+        }
+        if (!cpuCurrent && cpuTemp.cores?.length) {
+          const valid = (cpuTemp.cores as number[]).filter(isValidCpuTemp);
+          if (valid.length) cpuCurrent = Math.round(valid.reduce((a: number, b: number) => a + b, 0) / valid.length);
+        }
+        const isValidMax = (t: unknown): t is number =>
+          typeof t === "number" && isFinite(t) && t > 50 && t < 120;
+        if (isValidMax(cpuTemp.max)) cpuMax = Math.round(cpuTemp.max);
       }
 
       const gpuTemp = (gpu as any)?.temperatureGpu ?? null;
 
       res.json({
-        cpu: {
-          current: cpuCurrent,
-          max: cpuMax,
-        },
-        gpu: {
-          current: isValidTemp(gpuTemp) ? Math.round(gpuTemp) : null,
-        },
+        cpu: { current: cpuCurrent, max: cpuMax },
+        gpu: { current: isValidGpuTemp(gpuTemp) ? Math.round(gpuTemp) : null },
       });
     } catch {
       res.json({ cpu: { current: null, max: null }, gpu: { current: null } });
