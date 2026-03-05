@@ -90,60 +90,140 @@ interface CleanCategory {
   paths: string[];
 }
 
-const CLEAN_CATEGORIES: CleanCategory[] = [
-  {
-    id: "temp",
-    name: "Temporary Files",
-    description: "System and app temp files (/tmp, %TEMP%)",
-    paths: ["/tmp"],
-  },
-  {
-    id: "npm",
-    name: "Package Cache",
-    description: "npm, yarn & package manager cache",
-    paths: ["~/.npm/_cacache", "~/.cache/yarn", "~/.cache/pip"],
-  },
-  {
-    id: "logs",
-    name: "Log Files",
-    description: "System and application log files",
-    paths: ["/var/log"],
-  },
-  {
-    id: "cache",
-    name: "User Cache",
-    description: "App runtime and data cache",
-    paths: ["~/.cache/dconf", "~/.cache/gstreamer-1.0", "~/.cache/fontconfig"],
-  },
-  {
-    id: "thumbnails",
-    name: "Thumbnail Cache",
-    description: "Image and video preview thumbnails",
-    paths: ["~/.cache/thumbnails"],
-  },
-  {
-    id: "browser",
-    name: "Browser Cache",
-    description: "Chromium, Firefox and browser caches",
-    paths: [
-      "~/.cache/chromium/Default/Cache",
-      "~/.cache/google-chrome/Default/Cache",
-      "~/.cache/mozilla/firefox",
-    ],
-  },
-  {
-    id: "trash",
-    name: "Trash / Recycle Bin",
-    description: "Files waiting in the recycle bin",
-    paths: ["~/.local/share/Trash/files"],
-  },
-  {
-    id: "systemcache",
-    name: "System Package Cache",
-    description: "apt, yum and OS package cache",
-    paths: ["/var/cache/apt/archives", "/var/cache/yum"],
-  },
-];
+function getCleanCategories(): CleanCategory[] {
+  const isWin = process.platform === "win32";
+  const tmp = process.env.TEMP || process.env.TMP || path.join(os.homedir(), "AppData", "Local", "Temp");
+  const local = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+  const roaming = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+
+  if (isWin) {
+    return [
+      {
+        id: "temp",
+        name: "Temporary Files",
+        description: "User and system temp files (%TEMP%, C:\\Windows\\Temp)",
+        paths: [tmp, "C:\\Windows\\Temp"],
+      },
+      {
+        id: "prefetch",
+        name: "Prefetch Cache",
+        description: "Windows app prefetch files that accumulate over time",
+        paths: ["C:\\Windows\\Prefetch"],
+      },
+      {
+        id: "wupdate",
+        name: "Windows Update Cache",
+        description: "Downloaded Windows Update files (safe to clear after updates)",
+        paths: ["C:\\Windows\\SoftwareDistribution\\Download"],
+      },
+      {
+        id: "errorreports",
+        name: "Error Reports",
+        description: "Windows crash and error report archives",
+        paths: [
+          path.join(local, "Microsoft", "Windows", "WER", "ReportArchive"),
+          path.join(local, "Microsoft", "Windows", "WER", "ReportQueue"),
+          "C:\\ProgramData\\Microsoft\\Windows\\WER\\ReportArchive",
+        ],
+      },
+      {
+        id: "browser",
+        name: "Browser Cache",
+        description: "Chrome, Edge and Firefox browser cache files",
+        paths: [
+          path.join(local, "Google", "Chrome", "User Data", "Default", "Cache", "Cache_Data"),
+          path.join(local, "Google", "Chrome", "User Data", "Default", "Code Cache"),
+          path.join(local, "Microsoft", "Edge", "User Data", "Default", "Cache", "Cache_Data"),
+          path.join(local, "Microsoft", "Edge", "User Data", "Default", "Code Cache"),
+          path.join(roaming, "Mozilla", "Firefox", "Profiles"),
+        ],
+      },
+      {
+        id: "thumbnails",
+        name: "Thumbnail Cache",
+        description: "Windows Explorer thumbnail cache database",
+        paths: [
+          path.join(local, "Microsoft", "Windows", "Explorer"),
+        ],
+      },
+      {
+        id: "dumpfiles",
+        name: "Memory Dump Files",
+        description: "Windows crash dump files (minidumps)",
+        paths: [
+          "C:\\Windows\\Minidump",
+          path.join(local, "CrashDumps"),
+        ],
+      },
+      {
+        id: "logs",
+        name: "Log Files",
+        description: "Windows and application log files",
+        paths: [
+          path.join(local, "Temp"),
+          "C:\\Windows\\Logs\\CBS",
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      id: "temp",
+      name: "Temporary Files",
+      description: "System and app temp files (/tmp)",
+      paths: ["/tmp"],
+    },
+    {
+      id: "npm",
+      name: "Package Cache",
+      description: "npm, yarn & package manager cache",
+      paths: ["~/.npm/_cacache", "~/.cache/yarn", "~/.cache/pip"],
+    },
+    {
+      id: "logs",
+      name: "Log Files",
+      description: "System and application log files",
+      paths: ["/var/log"],
+    },
+    {
+      id: "cache",
+      name: "User Cache",
+      description: "App runtime and data cache",
+      paths: ["~/.cache/dconf", "~/.cache/gstreamer-1.0", "~/.cache/fontconfig"],
+    },
+    {
+      id: "thumbnails",
+      name: "Thumbnail Cache",
+      description: "Image and video preview thumbnails",
+      paths: ["~/.cache/thumbnails"],
+    },
+    {
+      id: "browser",
+      name: "Browser Cache",
+      description: "Chromium, Firefox and browser caches",
+      paths: [
+        "~/.cache/chromium/Default/Cache",
+        "~/.cache/google-chrome/Default/Cache",
+        "~/.cache/mozilla/firefox",
+      ],
+    },
+    {
+      id: "trash",
+      name: "Trash / Recycle Bin",
+      description: "Files waiting in the recycle bin",
+      paths: ["~/.local/share/Trash/files"],
+    },
+    {
+      id: "systemcache",
+      name: "System Package Cache",
+      description: "apt, yum and OS package cache",
+      paths: ["/var/cache/apt/archives", "/var/cache/yum"],
+    },
+  ];
+}
+
+const CLEAN_CATEGORIES: CleanCategory[] = getCleanCategories();
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 export async function registerRoutes(
@@ -552,7 +632,7 @@ export async function registerRoutes(
   app.get("/api/check-update", async (_req, res) => {
     try {
       const response = await fetch(
-        "https://api.github.com/repos/JaidenGoode/JGoodeA.I.O_PC_Tool/releases/latest"
+        "https://api.github.com/repos/JaidenGoode/JGoode-s-AIO-PC-Tool/releases/latest"
       );
       if (!response.ok) throw new Error("GitHub API unavailable");
       const release = (await response.json()) as {

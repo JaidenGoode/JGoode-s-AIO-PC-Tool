@@ -10,6 +10,7 @@ const allowlist = [
   "@octokit/core",
   "@octokit/plugin-rest-endpoint-methods",
   "@octokit/plugin-paginate-rest",
+  "@replit/connectors-sdk",
   "axios",
   "connect-pg-simple",
   "cors",
