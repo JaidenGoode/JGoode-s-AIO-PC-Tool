@@ -1,0 +1,70 @@
+name: Build Desktop App (Windows .exe)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore NuGet packages
+        working-directory: desktop
+        run: dotnet restore
+
+      - name: Build (Release)
+        working-directory: desktop
+        run: dotnet build -c Release --no-restore
+
+      - name: Publish — Self-contained single-file .exe
+        working-directory: desktop
+        run: |
+          dotnet publish -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o ../publish/win-x64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JGoodeAIO-Windows
+          path: publish/win-x64/JGoodeAIO.exe
+          retention-days: 30
+
+      - name: Create Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "JGoode A.I.O PC Tool ${{ github.ref_name }}"
+          body: |
+            ## JGoode A.I.O PC Tool ${{ github.ref_name }}
+
+            ### Download
+            Download `JGoodeAIO.exe` below — no installation required, just run it.
+
+            > **Run as Administrator** for tweaks to apply correctly.
+
+            ### What's included
+            - 47 PowerShell system tweaks
+            - Live CPU / RAM / GPU / Disk monitoring
+            - System cleaner (temp files, DNS, network reset)
+            - 13 accent colors + dark/light mode
+            - GitHub settings sync
+            - Self-contained — no .NET runtime required
+          files: publish/win-x64/JGoodeAIO.exe
+          draft: false
+          prerelease: false
