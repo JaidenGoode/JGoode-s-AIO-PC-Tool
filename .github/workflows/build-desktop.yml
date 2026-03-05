@@ -25,17 +25,29 @@ jobs:
         working-directory: desktop
         run: dotnet restore
 
-      - name: Publish — Self-contained folder
+      - name: Publish self-contained folder
         working-directory: desktop
         run: |
           dotnet publish -c Release -r win-x64 --self-contained true `
             -p:PublishSingleFile=false `
-            -p:PublishReadyToRun=true `
+            -p:PublishReadyToRun=false `
             -o ../publish/win-x64
 
-      - name: Zip the publish folder
+      - name: Bundle VC++ runtime DLLs (fixes SxS error on machines without VC++ installed)
         run: |
-          Compress-Archive -Path publish/win-x64/* -DestinationPath publish/JGoodeAIO-Windows.zip
+          $sys = "C:\Windows\System32"
+          $dest = "publish\win-x64"
+          foreach ($dll in @("msvcp140.dll","msvcp140_1.dll","msvcp140_2.dll","vcruntime140.dll","vcruntime140_1.dll")) {
+            $src = Join-Path $sys $dll
+            if (Test-Path $src) {
+              Copy-Item $src $dest
+              Write-Host "Copied $dll"
+            }
+          }
+
+      - name: Zip publish folder
+        run: |
+          Compress-Archive -Path publish/win-x64/* -DestinationPath publish/JGoodeAIO-Windows.zip -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -52,20 +64,19 @@ jobs:
           body: |
             ## JGoode A.I.O PC Tool ${{ github.ref_name }}
 
-            ### How to run
+            ### How to install
             1. Download `JGoodeAIO-Windows.zip` below
-            2. Extract the zip anywhere (Desktop, C:\JGoodeAIO, etc.)
+            2. Extract the zip to any folder (e.g. `C:\JGoodeAIO` or your Desktop)
             3. Right-click `JGoodeAIO.exe` → **Run as administrator**
 
-            > No .NET installation required — everything is included.
+            > All required runtimes are bundled — no installs needed.
 
-            ### What's included
+            ### Features
             - 47 PowerShell system tweaks (privacy, performance, gaming, debloat)
             - Live CPU / RAM / GPU / Disk monitoring
             - System cleaner (temp files, DNS flush, network reset)
             - 13 accent colors + dark/light mode
-            - GitHub settings sync
-            - Self-contained — no .NET runtime required
+            - Self-contained — no .NET or VC++ runtime required on your machine
           files: publish/JGoodeAIO-Windows.zip
           draft: false
           prerelease: false
