@@ -8,8 +8,8 @@
   "extraMetadata": {
     "name": "jgoodes-aio-pc-tool",
     "main": "electron/main.cjs",
-    "version": "3.0.0",
-    "description": "JGoode A.I.O PC Tool — All-in-one Windows optimizer with 51 PowerShell tweaks, system cleaner, DNS manager, restore points and live system monitoring.",
+    "version": "3.5.0",
+    "description": "JGoode's A.I.O PC Tool — All-in-one Windows optimizer with 100 PowerShell tweaks, system cleaner, DNS manager, restore points and live system monitoring.",
     "author": "JaidenGoode"
   },
   "directories": {
@@ -23,7 +23,8 @@
   "win": {
     "target": [{ "target": "nsis", "arch": ["x64"] }],
     "icon": "electron/icon.ico",
-    "requestedExecutionLevel": "requireAdministrator"
+    "requestedExecutionLevel": "requireAdministrator",
+    "artifactName": "JGoode's A.I.O PC Tool Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
