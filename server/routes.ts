@@ -73,6 +73,9 @@ async function seedTweaksIfNeeded() {
   }
 }
 
+// ── Detection cache (last known good result — survives transient PS failures) ──
+let _detectCache: { results: Record<string, number>; ts: number } | null = null;
+
 // ── Cleaner helpers ───────────────────────────────────────────────────────────
 function expandPath(p: string): string {
   return p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p;
@@ -118,21 +121,45 @@ async function deleteContents(dirPath: string): Promise<number> {
   let freed = 0;
   try {
     const items = await fs.promises.readdir(dirPath);
-    await Promise.all(
-      items.map(async (item) => {
-        const full = path.join(dirPath, item);
+    // Process sequentially to avoid overwhelming the filesystem
+    for (const item of items) {
+      const full = path.join(dirPath, item);
+      try {
+        const stat = await fs.promises.lstat(full);
+        const itemSize = stat.isDirectory()
+          ? (await getDirSize(full)).size
+          : stat.size;
+
+        // Strategy 1: native fs.rm (works for most files)
         try {
-          const stat = await fs.promises.lstat(full);
-          if (stat.isDirectory()) {
-            const sub = await getDirSize(full);
-            freed += sub.size;
-          } else {
-            freed += stat.size;
-          }
-          await fs.promises.rm(full, { recursive: true, force: true });
+          await fs.promises.rm(full, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+          freed += itemSize;
+          continue;
         } catch {}
-      })
-    );
+
+        // Strategy 2: for directories — try deleting contents first, then the dir
+        if (stat.isDirectory()) {
+          try {
+            const sub = await deleteContents(full);
+            freed += sub;
+            await fs.promises.rmdir(full).catch(() => {});
+            continue;
+          } catch {}
+        }
+
+        // Strategy 3: cmd del/rd as a last resort for stubborn files (Windows only)
+        if (process.platform === "win32") {
+          try {
+            if (stat.isDirectory()) {
+              await runCmd(`rd /s /q "${full}" 2>nul`, 5000);
+            } else {
+              await runCmd(`del /f /q "${full}" 2>nul`, 5000);
+            }
+            freed += itemSize;
+          } catch {}
+        }
+      } catch {}
+    }
   } catch {}
   return freed;
 }
@@ -185,15 +212,20 @@ function getCleanCategories(): CleanCategory[] {
       {
         id: "browser",
         name: "Browser Cache",
-        description: "Chrome, Edge and Opera GX browser cache files",
+        description: "Chrome, Edge, Firefox and Opera GX browser cache files",
         paths: [
           path.join(local, "Google", "Chrome", "User Data", "Default", "Cache", "Cache_Data"),
           path.join(local, "Google", "Chrome", "User Data", "Default", "Code Cache"),
+          path.join(local, "Google", "Chrome", "User Data", "Default", "GPUCache"),
           path.join(local, "Microsoft", "Edge", "User Data", "Default", "Cache", "Cache_Data"),
           path.join(local, "Microsoft", "Edge", "User Data", "Default", "Code Cache"),
+          path.join(local, "Microsoft", "Edge", "User Data", "Default", "GPUCache"),
+          path.join(roaming, "Mozilla", "Firefox", "Profiles"),
           path.join(roaming, "Opera Software", "Opera GX Stable", "Cache", "Cache_Data"),
           path.join(roaming, "Opera Software", "Opera GX Stable", "Code Cache"),
           path.join(roaming, "Opera Software", "Opera GX Stable", "GPUCache"),
+          path.join(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Cache", "Cache_Data"),
+          path.join(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Code Cache"),
         ],
       },
       {
@@ -216,10 +248,12 @@ function getCleanCategories(): CleanCategory[] {
       {
         id: "logs",
         name: "Log Files",
-        description: "Windows system CBS and DISM log files",
+        description: "Windows system CBS, DISM, and event log files",
         paths: [
           "C:\\Windows\\Logs\\CBS",
           "C:\\Windows\\Logs\\DISM",
+          "C:\\Windows\\Logs\\MoSetup",
+          path.join(local, "Temp"),
         ],
       },
       {
@@ -644,19 +678,27 @@ $d['Disable Peer Networking Identity (p2pimsvc)']=csvc 'p2pimsvc'
 
 $d | ConvertTo-Json -Compress`;
 
-      console.log("[detect] Running PowerShell detection script...");
-      const raw = await runPowerShell(psScript, 45000).catch((err) => {
-        console.error("[detect] PowerShell execution failed:", err);
-        return "{}";
-      });
-      console.log("[detect] Raw output length:", raw.length);
+      // Run PS script — retry once if output is empty/missing
+      const runDetect = () => runPowerShell(psScript, 45000).catch(() => "{}");
+      let raw = await runDetect();
       if (raw.length < 10) {
-        console.error("[detect] PowerShell returned empty/short output:", raw);
+        console.log("[detect] First attempt returned empty — retrying...");
+        await new Promise(r => setTimeout(r, 800));
+        raw = await runDetect();
       }
+      console.log("[detect] Raw output length:", raw.length);
 
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error("[detect] No JSON found in output. Raw:", raw.slice(0, 500));
+        // PS failed entirely — return last cached result so UI keeps showing correct state
+        if (_detectCache) {
+          console.log("[detect] Using cached detection result from", new Date(_detectCache.ts).toISOString());
+          const cached = _detectCache.results;
+          const active = Object.values(cached).filter(v => v === 1).length;
+          const total = Object.keys(cached).length;
+          return res.json({ active, total, results: cached, fromCache: true });
+        }
+        console.error("[detect] No JSON found and no cache available. Raw:", raw.slice(0, 300));
         return res.json({ active: 0, total: 0, results: {} });
       }
 
@@ -684,9 +726,17 @@ $d | ConvertTo-Json -Compress`;
         }
       }
 
+      // Save to cache so future failures return last known good state
+      _detectCache = { results, ts: Date.now() };
       console.log("[detect] Active tweaks:", activeCount, "of", Object.keys(results).length);
       res.json({ active: activeCount, total: Object.keys(results).length, results });
     } catch (err) {
+      // On any unexpected error, return cached result if available
+      if (_detectCache) {
+        const cached = _detectCache.results;
+        const active = Object.values(cached).filter(v => v === 1).length;
+        return res.json({ active, total: Object.keys(cached).length, results: cached, fromCache: true });
+      }
       console.error("[detect] Detection endpoint error:", err);
       res.status(500).json({ message: "Detection failed", error: String(err) });
     }
@@ -729,18 +779,16 @@ $d | ConvertTo-Json -Compress`;
           let totalCount = 0;
 
           if (cat.id === "recycle" && process.platform === "win32") {
-            const psOut = await runPowerShell(`
-try {
-  $shell = New-Object -ComObject Shell.Application -EA Stop
-  $bin = $shell.Namespace(10)
-  $items = @($bin.Items())
-  [long]$size = 0
-  foreach ($item in $items) { try { $size += [long]$item.Size } catch {} }
-  "$size $($items.Count)"
-} catch { "0 0" }`, 12000).catch(() => "0 0");
-            const parts = psOut.trim().split(/\s+/);
-            totalSize = Math.max(0, parseInt(parts[0]) || 0);
-            totalCount = Math.max(0, parseInt(parts[1]) || 0);
+            // Native Node.js: read $Recycle.Bin on all drives directly
+            const drives = ["C:", "D:", "E:", "F:", "G:"];
+            for (const drv of drives) {
+              const binPath = `${drv}\\$Recycle.Bin`;
+              try {
+                const sub = await getDirSize(binPath);
+                totalSize += sub.size;
+                totalCount += sub.count;
+              } catch {}
+            }
           } else if (cat.globDir && cat.globPattern) {
             try {
               await fs.promises.access(cat.globDir);
@@ -815,21 +863,26 @@ try {
         const isRecycle = id === "recycle" && process.platform === "win32";
 
         if (isWupdate) {
-          await runCmd("net stop wuauserv 2>nul", 8000).catch(() => {});
+          // Stop both Windows Update and BITS (Background Intelligent Transfer) so no file is locked
+          await runCmd("net stop wuauserv 2>nul & net stop bits 2>nul & net stop cryptSvc 2>nul & net stop msiserver 2>nul", 12000).catch(() => {});
         }
 
         if (isRecycle) {
-          const sizeOut = await runPowerShell(`
-try {
-  $shell = New-Object -ComObject Shell.Application -EA Stop
-  $bin = $shell.Namespace(10)
-  $items = @($bin.Items())
-  [long]$size = 0
-  foreach ($item in $items) { try { $size += [long]$item.Size } catch {} }
-  $size
-} catch { 0 }`, 12000).catch(() => "0");
-          freed = Math.max(0, parseInt(sizeOut.trim()) || 0);
-          await runPowerShell(`Clear-RecycleBin -Force -ErrorAction SilentlyContinue`, 15000).catch(() => {});
+          // Native: enumerate $Recycle.Bin on all drives for size, then use rd to empty
+          try {
+            const drives = ["C:", "D:", "E:", "F:", "G:"];
+            for (const drv of drives) {
+              const binPath = `${drv}\\$Recycle.Bin`;
+              try {
+                const { size } = await getDirSize(binPath);
+                freed += size;
+              } catch {}
+            }
+          } catch {}
+          // Use cmd rd to wipe recycle bin natively (no PS, no COM)
+          await runCmd("for %d in (C D E F G) do @if exist %d:\\$Recycle.Bin rd /s /q %d:\\$Recycle.Bin 2>nul", 12000).catch(() => {});
+          // Also use the shell API via PowerShell as a fallback/supplement
+          await runPowerShell(`Clear-RecycleBin -Force -ErrorAction SilentlyContinue`, 8000).catch(() => {});
         } else if (cat.globDir && cat.globPattern) {
           try {
             await fs.promises.access(cat.globDir);
@@ -859,7 +912,7 @@ try {
         }
 
         if (isWupdate) {
-          await runCmd("net start wuauserv 2>nul", 8000).catch(() => {});
+          await runCmd("net start cryptSvc 2>nul & net start bits 2>nul & net start wuauserv 2>nul & net start msiserver 2>nul", 12000).catch(() => {});
         }
 
         totalFreed += freed;
