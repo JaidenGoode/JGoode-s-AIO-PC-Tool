@@ -395,4 +395,40 @@ export const TWEAKS_SEED: TweakSeed[] = [
     warning: "DISCORD USERS ONLY — skip this if you do not use Discord. Only has effect if Discord is installed. Safe to skip for non-Discord users.",
     featureBreaks: "Discord overlay won't appear over games. Discord animations may be less smooth. Process priority is lowered."
   },
+
+  // ── PRIVACY (new standalone) ─────────────────────────────────────────────────
+  {
+    title: "Disable Windows Copilot & AI Features",
+    description: "Disables Windows Copilot, removes the Copilot button from the taskbar, disables the AI-powered Recall feature (which records everything you see on screen), and disables the AI Image Creator in Microsoft Paint. Safe for all users — these are opt-in Microsoft AI features.",
+    category: "privacy",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Copilot button removed from taskbar. Windows Recall disabled. AI Image Creator in Paint disabled. Copilot chat features unavailable."
+  },
+  {
+    title: "Disable Lock Screen Suggestions & Ads",
+    description: "Removes Microsoft's Windows Spotlight ads, rotating lock screen images, 'fun facts', tips, and push notifications from your lock screen. Replaces the lock screen with a clean, static image and removes notification badges.",
+    category: "privacy",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Lock screen will use a static wallpaper instead of rotating Spotlight images. Tips and ads on lock screen removed."
+  },
+
+  // ── SYSTEM (new standalone) ──────────────────────────────────────────────────
+  {
+    title: "Disable Remote Assistance",
+    description: "Prevents Windows from accepting remote assistance connection requests. Remote Assistance allows Microsoft or third parties to view and control your PC when invited. Disabling this removes the attack surface and prevents uninvited remote access.",
+    category: "system",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Cannot use Windows Remote Assistance to get help from another person. Does not affect Remote Desktop."
+  },
+  {
+    title: "Disable Phone Link & Mobile Sync",
+    description: "Disables the Phone Link (formerly Your Phone) feature that syncs your Android or iPhone to Windows. Also disables the Connected Device Platform (CDP) that allows cross-device experiences. Reduces background activity and stops Windows from trying to connect to your mobile devices.",
+    category: "system",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Phone Link app cannot sync with your phone. Cross-device clipboard and Continue on PC features disabled."
+  },
 ];
