@@ -6,6 +6,7 @@ import {
   Globe, HardDrive, RotateCcw, ScanLine, Sparkles,
   CheckSquare, Square, Loader2, CheckCircle2, AlertCircle,
   Cpu, RefreshCw, Database, Layers, Archive, History,
+  MessageSquare, Music, Gamepad2, Download, Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -34,6 +35,11 @@ const CAT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   dumpfiles: Database,
   shadercache: Layers,
   recycle: Archive,
+  discord: MessageSquare,
+  spotify: Music,
+  gamelaunchers: Gamepad2,
+  deliveryopt: Download,
+  adobe: Film,
 };
 
 function UsageBar({ pct, active = true }: { pct: number; active?: boolean }) {
@@ -254,10 +260,14 @@ export default function CleanerPage() {
             {/* Category preview cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {[
-                { icon: Trash2, label: "Temp Files", sub: "System & app temp" },
-                { icon: Globe, label: "Browser Cache", sub: "Web browser data" },
-                { icon: Package, label: "Package Cache", sub: "npm, yarn, pip" },
-                { icon: FileText, label: "Log Files", sub: "System logs" },
+                { icon: Trash2,        label: "Temp Files",     sub: "System & app temp" },
+                { icon: Globe,         label: "Browser Cache",  sub: "Chrome, Edge, Opera GX" },
+                { icon: Gamepad2,      label: "Game Launchers", sub: "Steam & Epic cache" },
+                { icon: Layers,        label: "Shader Cache",   sub: "GPU & DirectX cache" },
+                { icon: MessageSquare, label: "Discord Cache",  sub: "App & GPU cache" },
+                { icon: Music,         label: "Spotify Cache",  sub: "Audio & image cache" },
+                { icon: RefreshCw,     label: "Windows Update", sub: "Downloaded update files" },
+                { icon: FileText,      label: "Log Files",      sub: "CBS, DISM, system logs" },
               ].map(({ icon: Icon, label, sub }) => (
                 <div
                   key={label}
