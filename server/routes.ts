@@ -46,6 +46,18 @@ async function seedTweaksIfNeeded() {
         await storage.createTweak(tweak);
       }
       console.log(`[seed] Seeded ${TWEAKS_SEED.length} tweaks`);
+    } else {
+      const existingTitles = new Set(existing.map((t) => t.title));
+      let added = 0;
+      for (const tweak of TWEAKS_SEED) {
+        if (!existingTitles.has(tweak.title)) {
+          await storage.createTweak(tweak);
+          added++;
+        }
+      }
+      if (added > 0) {
+        console.log(`[seed] Added ${added} new tweaks`);
+      }
     }
   } catch (err) {
     console.error("[seed] Failed to seed tweaks:", err);
