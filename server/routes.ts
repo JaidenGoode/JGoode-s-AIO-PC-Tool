@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import si from "systeminformation";
-import { getGitHubUser, listUserRepos, createRepo, pushFilesViaTree } from "./github";
+import { getGitHubUser, listUserRepos, createRepo, pushFilesViaTree, isTokenConfigured } from "./github";
 import { TWEAKS_SEED } from "@shared/tweaks-seed";
 import fs from "fs";
 import path from "path";
@@ -24,8 +24,8 @@ function runPowerShell(script: string, timeoutMs = 20000): Promise<string> {
 
 function runCmd(command: string, timeoutMs = 20000): Promise<string> {
   return new Promise((resolve) => {
-    exec(command, { shell: true, timeout: timeoutMs, windowsHide: true },
-      (_err, stdout, stderr) => resolve((stdout || stderr || "").trim())
+    exec(command, { shell: "cmd.exe", timeout: timeoutMs, windowsHide: true } as any,
+      (_err: any, stdout: any, stderr: any) => resolve((stdout || stderr || "").trim())
     );
   });
 }
@@ -277,8 +277,8 @@ export async function registerRoutes(
         .filter((t) => t && t !== "Unknown");
       const ramType =
         memTypes.length > 0
-          ? [...new Set(memTypes)].join("/")
-          : mem.type || "Unknown";
+          ? Array.from(new Set(memTypes)).join("/")
+          : (mem as any).type || "Unknown";
 
       const primaryDisk = disk[0];
       const rootFs =
@@ -542,6 +542,12 @@ $d['Disable Power Throttling']=(creg 'HKLM:\SYSTEM\CurrentControlSet\Control\Pow
 $d['Debloat Microsoft Edge']=(creg 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' 'HubsSidebarEnabled' 0)
 $d['Debloat Google Chrome']=(creg 'HKLM:\SOFTWARE\Policies\Google\Chrome' 'BackgroundModeEnabled' 0)
 $d['Optimize Discord for Gaming']=(creg 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\Discord.exe\PerfOptions' 'CpuPriorityClass' 2)
+$d['Disable Windows Copilot & AI Features']=(creg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot' 'TurnOffWindowsCopilot' 1)
+$d['Disable Lock Screen Suggestions & Ads']=try{if((creg 'HKCU:\Software\Policies\Microsoft\Windows\CloudContent' 'DisableWindowsSpotlightFeatures' 1) -eq 1){1}else{0}}catch{0}
+$d['Disable Remote Assistance']=(creg 'HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance' 'fAllowToGetHelp' 0)
+$d['Disable Phone Link & Mobile Sync']=(creg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'EnableCdp' 0)
+$d['Debloat Opera GX']=try{$p=(creg 'HKCU:\Software\Opera Software' 'Last Speed Dial Sync' '');if($p -eq 1){1}else{if(Test-Path 'HKCU:\Software\Opera Software'){1}else{0}}}catch{0}
+$d['Disable Network Power Saving']=try{$ok=1;foreach($a in (Get-NetAdapter -Physical -EA Stop)){try{$pm=Get-NetAdapterPowerManagement -Name $a.Name -EA Stop;if($pm.WakeOnMagicPacket -ne 'Disabled'){$ok=0;break}}catch{}};$ok}catch{0}
 $d | ConvertTo-Json -Compress`;
 
       const raw = await runPowerShell(psScript, 35000).catch(() => "{}");
@@ -1002,6 +1008,10 @@ Write-Host "Restore point created successfully."`;
   });
 
   // ── GitHub Integration ────────────────────────────────────────────────────
+  app.get("/api/github/status", (_req, res) => {
+    res.json({ configured: isTokenConfigured() });
+  });
+
   app.get("/api/github/user", async (_req, res) => {
     try {
       const user = await getGitHubUser();
@@ -1058,7 +1068,7 @@ Write-Host "Restore point created successfully."`;
 
       const filesToPush: { path: string; content: Buffer }[] = [];
 
-      function collectDir(dir: string, base: string) {
+      const collectDir = (dir: string, base: string): void => {
         if (!fs.existsSync(path.join(root, dir))) return;
         const entries = fs.readdirSync(path.join(root, dir), { withFileTypes: true });
         for (const entry of entries) {
@@ -1075,7 +1085,7 @@ Write-Host "Restore point created successfully."`;
             } catch { /* skip unreadable files */ }
           }
         }
-      }
+      };
 
       for (const dir of SOURCE_DIRS) {
         collectDir(dir, dir);

@@ -27,6 +27,7 @@
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
+    "installDir": "$PROGRAMFILES\\JGoode's A.I.O PC Tool",
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "JGoode's A.I.O PC Tool",

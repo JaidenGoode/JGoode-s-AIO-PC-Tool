@@ -1,13 +1,43 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
+const GH_API = "https://api.github.com";
 
-let connectors: ReplitConnectors | null = null;
-try {
-  connectors = new ReplitConnectors();
-} catch {
-  connectors = null;
+function getToken(): string {
+  const token =
+    process.env.GITHUB_PERSONAL_ACCESS_TOKEN_MARCH5 ||
+    process.env.GITHUB_TOKEN;
+  if (!token) throw new Error("No GitHub token found. Add a secret named GITHUB_TOKEN with your Personal Access Token (classic, repo scope).");
+  return token;
 }
 
-const DESKTOP_ERROR = "GitHub sync requires the Replit-hosted version of this app. In the desktop app, use the GitHub page to copy your files manually.";
+async function ghFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  const url = endpoint.startsWith("http") ? endpoint : `${GH_API}${endpoint}`;
+  return fetch(url, {
+    ...options,
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+      ...(options.headers as Record<string, string> || {}),
+    },
+  });
+}
+
+async function ghJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const res = await ghFetch(endpoint, options);
+  const data = await res.json() as any;
+  if (!res.ok) {
+    throw new Error(data?.message || `GitHub API error ${res.status} on ${endpoint}`);
+  }
+  return data as T;
+}
+
+async function ghPost<T>(endpoint: string, body: unknown): Promise<T> {
+  return ghJson<T>(endpoint, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
 
 export interface GitHubRepo {
   id: number;
@@ -25,26 +55,8 @@ export interface GitHubUser {
   avatar_url: string;
 }
 
-async function ghProxy(endpoint: string, options: RequestInit = {}) {
-  if (!connectors) throw new Error(DESKTOP_ERROR);
-  return connectors.proxy("github", endpoint, options);
-}
-
-async function ghJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const res = await ghProxy(endpoint, options);
-  const data = await res.json() as any;
-  if (!res.ok) {
-    throw new Error(data?.message || `GitHub API error ${res.status} on ${endpoint}`);
-  }
-  return data as T;
-}
-
-async function ghPost<T>(endpoint: string, body: unknown): Promise<T> {
-  return ghJson<T>(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+export function isTokenConfigured(): boolean {
+  return !!(process.env.GITHUB_PERSONAL_ACCESS_TOKEN_MARCH5 || process.env.GITHUB_TOKEN);
 }
 
 export async function getGitHubUser(): Promise<GitHubUser> {
@@ -60,7 +72,7 @@ export async function createRepo(name: string, description: string, isPrivate: b
 }
 
 async function getRef(owner: string, repo: string, branch: string): Promise<{ object: { sha: string } } | null> {
-  const res = await ghProxy(`/repos/${owner}/${repo}/git/refs/heads/${branch}`);
+  const res = await ghFetch(`/repos/${owner}/${repo}/git/refs/heads/${branch}`);
   if (!res.ok) return null;
   const data = await res.json() as any;
   if (!data || data.message || !data.object?.sha) return null;
@@ -117,9 +129,8 @@ async function createCommit(
 
 async function upsertRef(owner: string, repo: string, branch: string, sha: string, exists: boolean): Promise<void> {
   if (exists) {
-    const res = await ghProxy(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
+    const res = await ghFetch(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sha, force: true }),
     });
     if (!res.ok) {

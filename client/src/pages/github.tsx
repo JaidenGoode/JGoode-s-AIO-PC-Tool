@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { SiGithub } from "react-icons/si";
 import {
   GitBranch, Upload, RefreshCw, CheckCircle2, AlertCircle,
-  Loader2, Plus, Lock, Unlock, ExternalLink,
+  Loader2, Plus, Lock, Unlock, ExternalLink, Key, ExternalLink as LinkIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,17 +39,90 @@ interface PushResult {
 
 const isElectron = typeof navigator !== "undefined" && navigator.userAgent.includes("Electron");
 
+function TokenSetupScreen() {
+  return (
+    <div className="space-y-5 pb-8">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          GitHub <span className="text-primary">Push</span>
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Push this project to your GitHub repository</p>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-6 rounded-xl border border-primary/20 bg-primary/4 space-y-5"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+            <Key className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">GitHub Token Required</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Add a Personal Access Token to enable GitHub push</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
+          <p className="font-semibold text-foreground/70 uppercase tracking-wider text-[10px]">Setup Steps</p>
+
+          <div className="space-y-2.5">
+            <div className="flex gap-3">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-bold flex items-center justify-center">1</span>
+              <p>
+                Go to{" "}
+                <a
+                  href="https://github.com/settings/tokens/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary font-semibold hover:underline inline-flex items-center gap-0.5"
+                >
+                  github.com/settings/tokens/new
+                  <LinkIcon className="h-2.5 w-2.5" />
+                </a>
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-bold flex items-center justify-center">2</span>
+              <p>Set a name (e.g. <span className="font-mono text-foreground/70 bg-secondary/60 px-1 rounded">JGoode AIO Tool</span>), check the <span className="font-semibold text-foreground/70">repo</span> scope, and click <span className="font-semibold text-foreground/70">Generate token</span></p>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-bold flex items-center justify-center">3</span>
+              <p>Copy the token, then open <span className="font-semibold text-foreground/70">Replit → Secrets (🔒)</span> in the left sidebar</p>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-bold flex items-center justify-center">4</span>
+              <p>Add a new secret named <span className="font-mono text-foreground/70 bg-secondary/60 px-1 rounded">GITHUB_TOKEN</span> and paste your token as the value</p>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 border border-primary/30 text-primary text-[10px] font-bold flex items-center justify-center">5</span>
+              <p>Restart the app workflow and come back to this page — GitHub push will be ready</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function GitHub() {
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [selectedRepo, setSelectedRepo] = useState<string>("");
-  const [newRepoName, setNewRepoName] = useState("JGoodeA.I.O_PC_Tool");
-  const [newRepoDesc, setNewRepoDesc] = useState("JGoode A.I.O PC Tool — All-in-one Windows optimization suite with 47 PowerShell tweaks, live hardware monitoring, and full theme customization.");
+  const [newRepoName, setNewRepoName] = useState("JGoode-s-AIO-PC-Tool");
+  const [newRepoDesc, setNewRepoDesc] = useState("JGoode's A.I.O PC Tool — All-in-one Windows optimization suite with 51 PowerShell tweaks, live hardware monitoring, and full theme customization.");
   const [isPrivate, setIsPrivate] = useState(false);
   const [pushResult, setPushResult] = useState<PushResult | null>(null);
 
+  const { data: status, isLoading: statusLoading } = useQuery<{ configured: boolean }>({
+    queryKey: ["/api/github/status"],
+    enabled: !isElectron,
+  });
+
   const { data: user, isLoading: userLoading, error: userError } = useQuery<GitHubUser>({
     queryKey: ["/api/github/user"],
-    enabled: !isElectron,
+    enabled: !isElectron && status?.configured === true,
+    retry: false,
   });
 
   const { data: repos, isLoading: reposLoading } = useQuery<GitHubRepo[]>({
@@ -101,34 +174,55 @@ export default function GitHub() {
             <SiGithub className="h-10 w-10 text-muted-foreground/40" />
           </div>
           <div className="space-y-2 max-w-sm">
-            <p className="text-sm font-bold text-foreground">Desktop App Mode</p>
+            <p className="text-sm font-bold text-foreground">Open in Replit to Push</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              GitHub integration requires the Replit development environment for OAuth authentication.
-              Open this project in Replit to push source files to GitHub.
+              GitHub push requires the Replit environment. Open this project in Replit, add your
+              <span className="font-mono text-primary/80 mx-1">GITHUB_TOKEN</span> secret, then use this page.
             </p>
-          </div>
-          <div className="px-4 py-3 rounded-xl border border-border/40 bg-secondary/30 text-xs text-muted-foreground/60 max-w-sm text-left space-y-1">
-            <p className="font-semibold text-foreground/50">To use GitHub Push:</p>
-            <p>1. Open the project at <span className="font-mono text-primary/70">replit.com</span></p>
-            <p>2. Connect your GitHub account via the Integrations panel</p>
-            <p>3. Use the GitHub page to push source files</p>
           </div>
         </div>
       </div>
     );
   }
 
+  if (statusLoading) {
+    return (
+      <div className="space-y-5 pb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            GitHub <span className="text-primary">Push</span>
+          </h1>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-20 w-full bg-secondary" />
+          <Skeleton className="h-12 w-full bg-secondary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!status?.configured) {
+    return <TokenSetupScreen />;
+  }
+
   if (userError) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
-        <div className="p-4 rounded-full bg-destructive/10 border border-destructive/20">
-          <AlertCircle className="h-8 w-8 text-destructive" />
-        </div>
+      <div className="space-y-5 pb-8">
         <div>
-          <p className="text-sm font-semibold text-foreground">GitHub Not Connected</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            GitHub authentication failed. Please reconnect via the Replit integration panel.
-          </p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            GitHub <span className="text-primary">Push</span>
+          </h1>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="p-4 rounded-full bg-destructive/10 border border-destructive/20">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+          </div>
+          <div className="max-w-sm space-y-1.5">
+            <p className="text-sm font-semibold text-foreground">Token Error</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {(userError as any)?.message || "Could not authenticate with GitHub. Make sure your GITHUB_TOKEN secret has the repo scope and hasn't expired."}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -164,11 +258,13 @@ export default function GitHub() {
               <Skeleton className="h-5 w-40 bg-secondary" />
             ) : (
               <div className="flex items-center gap-2.5">
-                <img
-                  src={user?.avatar_url}
-                  alt=""
-                  className="w-6 h-6 rounded-full border border-border/60"
-                />
+                {user?.avatar_url && (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="w-6 h-6 rounded-full border border-border/60"
+                  />
+                )}
                 <span className="text-sm font-semibold text-foreground">
                   {user?.name || user?.login}
                 </span>
@@ -282,7 +378,7 @@ export default function GitHub() {
               <Input
                 value={newRepoName}
                 onChange={(e) => setNewRepoName(e.target.value)}
-                placeholder="JGoodeA.I.O_PC_Tool"
+                placeholder="JGoode-s-AIO-PC-Tool"
                 className="bg-secondary border-border/60 focus:border-primary/40 h-9 text-sm"
                 data-testid="input-new-repo-name"
               />
@@ -392,7 +488,7 @@ export default function GitHub() {
         </p>
         Pushes all source files (client, server, shared, root configs) in a single batch commit.
         Files over 512 KB are skipped automatically. Secrets and node_modules are never included.
-        Your GitHub OAuth credentials are securely managed by Replit — no API keys needed.
+        Uses your <span className="font-mono">GITHUB_TOKEN</span> secret for authentication.
       </div>
     </div>
   );

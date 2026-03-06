@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Wrench, Shield, Zap, SlidersHorizontal,
-  AlertTriangle, Ghost, Gamepad2, Globe, Info, CheckCircle2,
+  AlertTriangle, Ghost, Gamepad2, Globe, CheckCircle2,
   Download, Copy, Check, Terminal, ScanSearch, Loader2,
-  Play, X, Clock, Trash2, ChevronRight, RotateCcw, AlertOctagon,
+  Play, X, Trash2, RotateCcw, AlertOctagon, Info, ChevronRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -22,11 +22,12 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { getTweakCommand, generatePowerShellScript, generateUndoScript } from "@/lib/tweak-commands";
-import { detectTweaks, bulkUpdateTweaks } from "@/lib/api";
+import { bulkUpdateTweaks } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { TWEAK_PRESETS } from "@/lib/tweak-presets";
 import { getImpact, type ImpactLevel } from "@/lib/tweak-impacts";
 import { getConflict } from "@/lib/tweak-conflicts";
+import { useDetect } from "@/contexts/detect-context";
 
 declare global {
   interface Window {
@@ -86,87 +87,37 @@ function CopyButton({ text, size = "sm" }: { text: string; size?: "xs" | "sm" })
   );
 }
 
-function formatScannedTime(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (sameDay) return `Today at ${time}`;
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return `Yesterday at ${time}`;
-  return d.toLocaleDateString([], { month: "short", day: "numeric" }) + ` at ${time}`;
-}
 
 export default function Tweaks() {
   const { data: tweaks, isLoading } = useTweaks();
   const updateTweak = useUpdateTweak();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { triggerDetect, isDetecting } = useDetect();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [, setLocation] = useLocation();
   const [showRestorePrompt, setShowRestorePrompt] = useState(() => !localStorage.getItem("restore_prompt_shown"));
   const [viewingCmd, setViewingCmd] = useState<{ title: string; cmd: string } | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [applyingTweaks, setApplyingTweaks] = useState<Set<number>>(new Set());
   const [showRunDialog, setShowRunDialog] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [scriptOutput, setScriptOutput] = useState<Array<{ type: string; text: string }>>([]);
-  const [lastScanned, setLastScanned] = useState<string | null>(() => {
-    const ts = localStorage.getItem("tweaks_scanned_at");
-    return ts || null;
-  });
   const terminalRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [scriptOutput]);
-
-  const detectMutation = useMutation({
-    mutationFn: detectTweaks,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tweaks"] });
-      const now = new Date().toISOString();
-      localStorage.setItem("tweaks_scanned", "1");
-      localStorage.setItem("tweaks_scanned_at", now);
-      setLastScanned(now);
-      if (data.total === 0) {
-        toast({ title: "Scan complete", description: "Running on non-Windows — no tweaks detected." });
-      } else {
-        toast({
-          title: `Scan complete — ${data.active} tweak${data.active !== 1 ? "s" : ""} detected`,
-          description: `Checked ${data.total} tweaks against your system registry. Toggles updated.`,
-        });
-      }
-    },
-    onError: () => {
-      toast({ title: "Scan failed", description: "Could not read system state. Try running as Administrator.", variant: "destructive" });
-    },
-  });
 
   const bulkMutation = useMutation({
     mutationFn: ({ titles, isActive }: { titles: string[]; isActive: boolean }) =>
       bulkUpdateTweaks(titles, isActive),
-    onSuccess: (data, vars) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tweaks"] });
-      if (data.updated === 0) {
-        toast({ title: vars.isActive ? "Already applied" : "Already cleared", description: "No changes needed." });
-      }
+      triggerDetect(1000);
     },
     onError: () => {
       toast({ title: "Operation failed", description: "Could not update tweaks.", variant: "destructive" });
     },
   });
-
-  useEffect(() => {
-    if (!localStorage.getItem("tweaks_scanned") && tweaks && !isLoading && !detectMutation.isPending) {
-      detectMutation.mutate();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tweaks, isLoading]);
 
   const handleClosePrompt = (wantsRestore: boolean) => {
     localStorage.setItem("restore_prompt_shown", "true");
@@ -195,6 +146,55 @@ export default function Tweaks() {
     setShowClearConfirm(false);
     await bulkMutation.mutateAsync({ titles: [], isActive: false });
     toast({ title: "All tweaks cleared", description: "All tweaks have been disabled." });
+  };
+
+  const handleToggleTweak = async (tweak: { id: number; title: string; isActive: boolean }) => {
+    const newState = !tweak.isActive;
+    const cmd = getTweakCommand(tweak.title);
+
+    updateTweak.mutate({ id: tweak.id, isActive: newState });
+
+    if (!cmd || !window.electronAPI?.runScript) {
+      triggerDetect(800);
+      return;
+    }
+
+    const script = newState ? cmd.enable : cmd.disable;
+    if (!script) {
+      triggerDetect(800);
+      return;
+    }
+
+    setApplyingTweaks(prev => new Set(prev).add(tweak.id));
+
+    try {
+      const result = await window.electronAPI.runScript(script);
+      if (result.success || result.code === 0) {
+        toast({
+          title: newState ? `✓ ${tweak.title}` : `✓ Reverted: ${tweak.title}`,
+          description: newState ? "Tweak applied successfully." : "Tweak disabled and reverted.",
+        });
+      } else {
+        toast({
+          title: `${tweak.title}`,
+          description: "Script ran but returned a non-zero exit code. Try running as Administrator.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: `Failed: ${tweak.title}`,
+        description: "Could not run the script. Make sure the app is running as Administrator.",
+        variant: "destructive",
+      });
+    } finally {
+      setApplyingTweaks(prev => {
+        const next = new Set(prev);
+        next.delete(tweak.id);
+        return next;
+      });
+      triggerDetect(500);
+    }
   };
 
   const handleRunInApp = async () => {
@@ -441,16 +441,16 @@ export default function Tweaks() {
             </div>
             <Button
               size="sm"
-              onClick={() => detectMutation.mutate()}
-              disabled={detectMutation.isPending}
+              onClick={() => triggerDetect()}
+              disabled={isDetecting}
               className="h-8 gap-1.5 text-xs font-semibold shrink-0 bg-secondary hover:bg-secondary/80 text-foreground border border-border/60 hover:border-primary/30"
               data-testid="button-scan-system"
-              title="Scan your Windows registry to detect which tweaks are already applied"
+              title="Re-scan your Windows registry to detect which tweaks are applied"
             >
-              {detectMutation.isPending
+              {isDetecting
                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 : <ScanSearch className="h-3.5 w-3.5 text-primary" />}
-              {detectMutation.isPending ? "Scanning..." : "Scan System"}
+              {isDetecting ? "Detecting..." : "Re-scan"}
             </Button>
             {typeof window !== "undefined" && window.electronAPI?.runScript && activeTweakCount > 0 && (
               <Button
@@ -499,10 +499,10 @@ export default function Tweaks() {
               </Button>
             )}
           </div>
-          {lastScanned && (
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/40">
-              <Clock className="h-2.5 w-2.5" />
-              Last scanned: {formatScannedTime(lastScanned)}
+          {isDetecting && (
+            <div className="flex items-center gap-1 text-[10px] text-primary/60">
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              Detecting system state...
             </div>
           )}
         </div>
@@ -562,10 +562,10 @@ export default function Tweaks() {
       <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-primary/15 bg-primary/4 text-xs text-muted-foreground/70">
         <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
         <span>
-          Use <span className="text-foreground font-semibold">Scan System</span> to auto-detect applied tweaks.
+          Tweaks are <span className="text-foreground font-semibold">auto-detected</span> from your system registry on startup and after every change.
           Use <span className="text-foreground font-semibold">Presets</span> to bulk-enable curated sets.
           {typeof window !== "undefined" && window.electronAPI?.runScript
-            ? <> Click <span className="text-foreground font-semibold">Run in App</span> to apply directly via PowerShell (requires Admin), or <span className="text-foreground font-semibold">Export .ps1</span> to run manually.</>
+            ? <> Toggle any switch to apply or revert instantly via PowerShell (requires Admin), or use <span className="text-foreground font-semibold">Run in App</span> to re-apply all active tweaks.</>
             : <> Click <span className="text-foreground font-semibold">Export .ps1</span> to download a ready-to-run PowerShell script — run as Administrator.</>
           }
         </span>
@@ -684,7 +684,8 @@ export default function Tweaks() {
                           </h3>
                           <Switch
                             checked={tweak.isActive}
-                            onCheckedChange={() => updateTweak.mutate({ id: tweak.id, isActive: !tweak.isActive })}
+                            onCheckedChange={() => handleToggleTweak(tweak)}
+                            disabled={applyingTweaks.has(tweak.id)}
                             className="data-[state=checked]:bg-primary shrink-0"
                             data-testid={`switch-tweak-${tweak.id}`}
                           />
@@ -749,7 +750,12 @@ export default function Tweaks() {
                                 View CMD
                               </button>
                             )}
-                            {tweak.isActive && (
+                            {applyingTweaks.has(tweak.id) ? (
+                              <div className="flex items-center gap-1 text-amber-400">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span className="text-[10px] font-bold">Applying...</span>
+                              </div>
+                            ) : tweak.isActive && (
                               <div className="flex items-center gap-1 text-primary">
                                 <CheckCircle2 className="h-3 w-3" />
                                 <span className="text-[10px] font-bold">Active</span>
