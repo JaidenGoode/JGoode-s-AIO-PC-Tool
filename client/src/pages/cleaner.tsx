@@ -282,57 +282,38 @@ export default function CleanerPage() {
               ))}
             </div>
 
-            {/* Cleaning History */}
-            {hasHistory && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="rounded-xl border border-border bg-card overflow-hidden"
-              >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 rounded-md bg-primary/10">
-                      <History className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <span className="text-[12px] font-bold text-foreground">Cleaning History</span>
+            {/* Last Clean Summary */}
+            {hasHistory && (() => {
+              const last = cleanHistory.entries[0];
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl border border-border bg-card"
+                  data-testid="row-history-0"
+                >
+                  <div className="p-2 rounded-lg bg-green-500/10 shrink-0">
+                    <History className="h-4 w-4 text-green-400" />
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-muted-foreground/50">Total freed since install: </span>
-                    <span className="text-[11px] font-bold text-primary font-mono">{cleanHistory.totalFreedHuman}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold text-foreground">Last cleaned</p>
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                      {formatHistoryDate(last.date)} &middot; {last.count} {last.count === 1 ? "category" : "categories"}
+                    </p>
                   </div>
-                </div>
-                <div className="divide-y divide-border/30">
-                  {cleanHistory.entries.slice(0, 6).map((entry, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between px-4 py-2.5 hover:bg-secondary/20 transition-colors"
-                      data-testid={`row-history-${i}`}
-                    >
-                      <div>
-                        <p className="text-[11px] text-foreground/70 font-medium">
-                          {formatHistoryDate(entry.date)}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/40 mt-0.5">
-                          {entry.count} {entry.count === 1 ? "category" : "categories"} cleaned
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[13px] font-black font-mono text-green-400">{entry.freedHuman}</p>
-                        <p className="text-[9px] text-muted-foreground/30 mt-0.5">freed</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {cleanHistory.entries.length > 6 && (
-                  <div className="px-4 py-2 text-center border-t border-border/30">
-                    <span className="text-[10px] text-muted-foreground/40">
-                      +{cleanHistory.entries.length - 6} more sessions
-                    </span>
+                  <div className="text-right shrink-0">
+                    <p className="text-[15px] font-black font-mono text-green-400">{last.freedHuman}</p>
+                    <p className="text-[9px] text-muted-foreground/40 mt-0.5">freed</p>
                   </div>
-                )}
-              </motion.div>
-            )}
+                  <div className="h-8 w-px bg-border/60 shrink-0" />
+                  <div className="text-right shrink-0">
+                    <p className="text-[11px] font-black font-mono text-primary">{cleanHistory.totalFreedHuman}</p>
+                    <p className="text-[9px] text-muted-foreground/40 mt-0.5">total freed</p>
+                  </div>
+                </motion.div>
+              );
+            })()}
 
             {/* Info notice */}
             <motion.div
