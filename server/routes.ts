@@ -171,6 +171,25 @@ interface CleanCategory {
   paths: string[];
   globDir?: string;
   globPattern?: string;
+  // Scans/cleans a specific named subdir within each child of the listed parent dirs.
+  // e.g. Firefox: parent=Profiles dir, subdir="cache2" → cleans only cache inside each profile.
+  subDirScan?: { parent: string; subdir: string }[];
+}
+
+// Expands subDirScan entries into actual on-disk cache paths
+async function expandSubDirScan(items: { parent: string; subdir: string }[]): Promise<string[]> {
+  const result: string[] = [];
+  for (const item of items) {
+    try {
+      const children = await fs.promises.readdir(item.parent, { withFileTypes: true });
+      for (const child of children) {
+        if (child.isDirectory()) {
+          result.push(path.join(item.parent, child.name, item.subdir));
+        }
+      }
+    } catch {}
+  }
+  return result;
 }
 
 function getCleanCategories(): CleanCategory[] {
@@ -212,20 +231,27 @@ function getCleanCategories(): CleanCategory[] {
       {
         id: "browser",
         name: "Browser Cache",
-        description: "Chrome, Edge, Firefox and Opera GX browser cache files",
+        description: "Chrome, Edge, Opera GX, and Brave browser cache files",
         paths: [
+          // Google Chrome
           path.join(local, "Google", "Chrome", "User Data", "Default", "Cache", "Cache_Data"),
           path.join(local, "Google", "Chrome", "User Data", "Default", "Code Cache"),
           path.join(local, "Google", "Chrome", "User Data", "Default", "GPUCache"),
+          // Microsoft Edge
           path.join(local, "Microsoft", "Edge", "User Data", "Default", "Cache", "Cache_Data"),
           path.join(local, "Microsoft", "Edge", "User Data", "Default", "Code Cache"),
           path.join(local, "Microsoft", "Edge", "User Data", "Default", "GPUCache"),
-          path.join(roaming, "Mozilla", "Firefox", "Profiles"),
+          // Opera GX
           path.join(roaming, "Opera Software", "Opera GX Stable", "Cache", "Cache_Data"),
           path.join(roaming, "Opera Software", "Opera GX Stable", "Code Cache"),
           path.join(roaming, "Opera Software", "Opera GX Stable", "GPUCache"),
+          path.join(local, "Opera Software", "Opera GX Stable", "Cache", "Cache_Data"),
+          path.join(local, "Opera Software", "Opera GX Stable", "Code Cache"),
+          path.join(local, "Opera Software", "Opera GX Stable", "GPUCache"),
+          // Brave
           path.join(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Cache", "Cache_Data"),
           path.join(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Code Cache"),
+          path.join(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "GPUCache"),
         ],
       },
       {
@@ -248,12 +274,12 @@ function getCleanCategories(): CleanCategory[] {
       {
         id: "logs",
         name: "Log Files",
-        description: "Windows system CBS, DISM, and event log files",
+        description: "Windows system CBS, DISM, MoSetup, and Windows Update log files",
         paths: [
           "C:\\Windows\\Logs\\CBS",
           "C:\\Windows\\Logs\\DISM",
           "C:\\Windows\\Logs\\MoSetup",
-          path.join(local, "Temp"),
+          "C:\\Windows\\Panther",
         ],
       },
       {
@@ -267,6 +293,66 @@ function getCleanCategories(): CleanCategory[] {
           path.join(local, "NVIDIA Corporation", "NV_Cache"),
           path.join(local, "AMD", "DXCache"),
           path.join(local, "Intel", "ShaderCache"),
+        ],
+      },
+      {
+        id: "discord",
+        name: "Discord Cache",
+        description: "Discord app cache, GPU cache, and code cache files",
+        paths: [
+          path.join(roaming, "discord", "Cache", "Cache_Data"),
+          path.join(roaming, "discord", "Code Cache"),
+          path.join(roaming, "discord", "GPUCache"),
+          path.join(roaming, "discord", "DawnCache"),
+          path.join(local, "Discord", "Cache", "Cache_Data"),
+          path.join(local, "Discord", "Code Cache"),
+          path.join(local, "Discord", "GPUCache"),
+        ],
+      },
+      {
+        id: "spotify",
+        name: "Spotify Cache",
+        description: "Spotify local audio and image cache (can grow to several GB)",
+        paths: [
+          path.join(local, "Spotify", "Storage"),
+          path.join(local, "Spotify", "Data"),
+          path.join(roaming, "Spotify", "Storage"),
+          path.join(roaming, "Spotify", "Users"),
+        ],
+      },
+      {
+        id: "gamelaunchers",
+        name: "Game Launcher Cache",
+        description: "Steam store page cache and Epic Games Launcher web cache files",
+        paths: [
+          path.join(local, "Steam", "htmlcache", "Cache", "Cache_Data"),
+          path.join(local, "Steam", "htmlcache", "Code Cache"),
+          path.join(local, "Steam", "htmlcache", "GPUCache"),
+          path.join(local, "EpicGamesLauncher", "Saved", "webcache_4430"),
+          path.join(local, "EpicGamesLauncher", "Saved", "Logs"),
+          path.join(local, "EpicGamesLauncher", "Saved", "webcache"),
+        ],
+      },
+      {
+        id: "deliveryopt",
+        name: "Delivery Optimization Cache",
+        description: "Windows P2P update distribution cache used to share updates with other PCs",
+        paths: [
+          "C:\\Windows\\ServiceProfiles\\NetworkService\\AppData\\Local\\Microsoft\\Windows\\DeliveryOptimization\\Cache",
+          "C:\\Windows\\SoftwareDistribution\\DeliveryOptimization",
+        ],
+      },
+      {
+        id: "adobe",
+        name: "Adobe Media Cache",
+        description: "Adobe Premiere, After Effects, and Media Encoder preview and media cache files (can be many GB)",
+        paths: [
+          path.join(roaming, "Adobe", "Common", "Media Cache"),
+          path.join(roaming, "Adobe", "Common", "Media Cache Files"),
+          path.join(local, "Adobe", "Common", "Media Cache"),
+          path.join(local, "Adobe", "Common", "Media Cache Files"),
+          path.join(local, "Adobe", "After Effects CC", "media cache"),
+          path.join(roaming, "Adobe", "After Effects CC", "media cache"),
         ],
       },
       {
