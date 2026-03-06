@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Wrench, Shield, Zap, SlidersHorizontal,
   AlertTriangle, Ghost, Gamepad2, Globe, CheckCircle2,
-  Download, Copy, Check, Terminal, ScanSearch, Loader2,
-  Play, X, RotateCcw, AlertOctagon, Info, Square, CheckSquare,
+  Download, Copy, Check, Terminal, Loader2, ScanSearch,
+  Play, X, RotateCcw, AlertOctagon, Info, CheckSquare,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -387,7 +387,7 @@ export default function Tweaks() {
             Auto-detected from your system
             {hasInitialDetect && (
               <span className="ml-1.5">
-                <span className="text-green-400 font-bold">{optimizedCount}</span>
+                <span className="text-primary font-bold">{optimizedCount}</span>
                 <span className="text-muted-foreground/60">/{totalCount} optimized</span>
                 {selectedCount > 0 && (
                   <span className="ml-2 text-primary font-bold">{selectedCount} selected</span>
@@ -561,7 +561,7 @@ export default function Tweaks() {
         <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
         <span>
           Tweaks are <span className="text-foreground font-semibold">auto-detected</span> from your system on startup.
-          Already applied tweaks show as <span className="text-green-400 font-semibold">Optimized</span>.
+          Already applied tweaks show as <span className="text-primary font-semibold">Optimized</span>.
           Select un-optimized tweaks and click <span className="text-primary font-semibold">Optimize Selected</span> to apply them.
         </span>
       </div>
@@ -597,7 +597,7 @@ export default function Tweaks() {
               )}>
                 {optimized > 0 ? (
                   <span>
-                    <span className={isSelected ? "text-green-400" : "text-green-400/60"}>{optimized}</span>
+                    <span className={isSelected ? "text-primary" : "text-primary/60"}>{optimized}</span>
                     <span className="text-muted-foreground/30">/{total}</span>
                   </span>
                 ) : (
@@ -610,21 +610,11 @@ export default function Tweaks() {
       </div>
 
       {/* ── Tweaks grid ─────────────────────────────────────────────────── */}
-      {(isLoading || !hasInitialDetect) ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="relative mb-6">
-            <div className="h-16 w-16 rounded-full border-2 border-primary/20 flex items-center justify-center">
-              <ScanSearch className="h-7 w-7 text-primary animate-pulse" />
-            </div>
-            <div className="absolute inset-0 h-16 w-16 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-          </div>
-          <h3 className="text-base font-bold text-foreground mb-1">Scanning System</h3>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            Detecting applied tweaks from your Windows registry...
-          </p>
-          <p className="text-[10px] text-muted-foreground/40 mt-3">
-            This runs automatically every time the app opens
-          </p>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="h-36 rounded-xl border border-border bg-card animate-pulse" />
+          ))}
         </div>
       ) : filteredTweaks?.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -647,7 +637,7 @@ export default function Tweaks() {
                 ? tweaks?.find(t => t.title === conflictTitle)?.isActive
                 : false;
               const impactStyle: Record<ImpactLevel, string> = {
-                High:   "text-green-400 bg-green-500/8 border-green-500/20",
+                High:   "text-primary bg-primary/8 border-primary/20",
                 Medium: "text-amber-400 bg-amber-500/8 border-amber-500/20",
                 Low:    "text-muted-foreground/60 bg-secondary/50 border-border/40",
               };
@@ -666,14 +656,12 @@ export default function Tweaks() {
                     className={cn(
                       "card-premium h-full flex flex-col p-4 rounded-xl border transition-all duration-200 cursor-pointer",
                       isOptimized
-                        ? "bg-green-500/4 border-green-500/25 hover:border-green-500/40"
+                        ? "bg-primary/4 border-primary/25 hover:border-primary/40"
                         : isSelected
                           ? "bg-primary/6 border-primary/35 hover:border-primary/50"
                           : "bg-card border-border hover:border-border/80"
                     )}
-                    style={isOptimized ? {
-                      boxShadow: "0 0 15px hsl(142 71% 45% / 0.08), inset 0 1px 0 hsl(142 71% 45% / 0.06)"
-                    } : isSelected ? {
+                    style={(isOptimized || isSelected) ? {
                       boxShadow: "0 0 15px hsl(var(--primary) / 0.1), inset 0 1px 0 hsl(var(--primary) / 0.06)"
                     } : undefined}
                     onClick={() => !isOptimized && toggleSelect(tweak.id)}
@@ -687,9 +675,9 @@ export default function Tweaks() {
                         {tweak.title}
                       </h3>
                       {isOptimized ? (
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/12 border border-green-500/25 shrink-0" data-testid={`badge-optimized-${tweak.id}`}>
-                          <CheckCircle2 className="h-3 w-3 text-green-400" />
-                          <span className="text-[10px] font-bold text-green-400">Optimized</span>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/12 border border-primary/25 shrink-0" data-testid={`badge-optimized-${tweak.id}`}>
+                          <CheckCircle2 className="h-3 w-3 text-primary" />
+                          <span className="text-[10px] font-bold text-primary">Optimized</span>
                         </div>
                       ) : (
                         <button
@@ -788,7 +776,7 @@ export default function Tweaks() {
       {filteredTweaks && filteredTweaks.length > 0 && (
         <p className="text-[11px] text-muted-foreground/40 text-center pt-2">
           Showing {filteredTweaks.length} tweak{filteredTweaks.length !== 1 ? "s" : ""}
-          {optimizedCount > 0 && <span> · <span className="text-green-400/60">{optimizedCount} optimized</span></span>}
+          {optimizedCount > 0 && <span> · <span className="text-primary/60">{optimizedCount} optimized</span></span>}
           {selectedCount > 0 && <span> · <span className="text-primary/60">{selectedCount} selected</span></span>}
         </p>
       )}
