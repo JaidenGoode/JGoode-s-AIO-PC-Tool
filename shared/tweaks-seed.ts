@@ -607,67 +607,67 @@ export const TWEAKS_SEED: TweakSeed[] = [
   // ── NETWORK ───────────────────────────────────────────────────────────────
   {
     title: "Disable NetBIOS over TCP/IP",
-    description: "Disables the legacy NetBIOS over TCP/IP protocol on all network adapters. NetBIOS is a 1980s-era LAN protocol still running on every Windows PC by default, generating unnecessary broadcast traffic and exposing NetBIOS name resolution to the network. Home and gaming PCs have no use for it.",
+    description: "Disables the legacy NetBIOS over TCP/IP protocol on all network adapters. NetBIOS is a 1980s-era LAN protocol still running on every Windows PC by default, generating unnecessary broadcast traffic and exposing your PC's name to the local network. Home and gaming PCs have zero use for it.",
     category: "network",
     isActive: false,
-    warning: null,
+    warning: "CORPORATE/VPN USERS: If you connect to a work domain via VPN and access resources by hostname (e.g. \\\\server\\share), some corporate VPN configs rely on NetBIOS for name resolution. Disable only on personal/home-only PCs.",
     featureBreaks: "Some very old file/printer sharing tools that rely on NetBIOS names may stop working. No effect on modern SMB2/SMB3 file sharing or internet connectivity."
   },
   {
     title: "Disable SMBv1 Protocol",
-    description: "Disables the legacy SMBv1 file-sharing protocol and removes the SMBv1 Windows feature. SMBv1 is a 1990s-era protocol that is exploited by ransomware (WannaCry, NotPetya) and has been replaced by SMBv2/SMBv3 since Windows Vista. Modern file sharing, NAS drives, and network printers all use SMBv2+.",
+    description: "Disables the legacy SMBv1 file-sharing protocol and removes the SMBv1 Windows Optional Feature. SMBv1 is a 1990s-era protocol with no security, exploited directly by WannaCry and NotPetya ransomware. All modern devices (NAS drives, printers, PCs) use SMBv2 or SMBv3. Applying this is a security essential.",
     category: "network",
     isActive: false,
-    warning: null,
-    featureBreaks: "Very old NAS devices or printers that only support SMBv1 (pre-2006 firmware) will stop being accessible. All modern devices use SMBv2+ and are unaffected."
+    warning: "RESTART REQUIRED after applying. OLD NAS USERS: Devices manufactured before 2006 with unupdated firmware may only support SMBv1. Check your NAS model and firmware version before applying.",
+    featureBreaks: "Requires a system restart to take effect. NAS devices or printers with only SMBv1 support (pre-2006, unupdated firmware) will be inaccessible. All modern devices are unaffected."
   },
   {
     title: "Disable Large Send Offload (LSO)",
-    description: "Disables Large Send Offload on the network adapter. LSO batches multiple TCP segments together before sending, which increases throughput but adds latency. For online gaming and real-time applications where low latency matters more than raw throughput, disabling LSO reduces ping variance.",
+    description: "Disables Large Send Offload on the network adapter. LSO batches multiple TCP segments together before sending, improving throughput at the cost of added latency. For online gaming and real-time applications where low latency beats raw throughput, disabling LSO reduces ping variance and makes connection feel more consistent.",
     category: "network",
     isActive: false,
     warning: null,
-    featureBreaks: "Large file upload throughput may be marginally reduced. Latency and ping consistency improve — net benefit for gaming."
+    featureBreaks: "Large file upload speed may be marginally reduced on some connections. Ping consistency improves — net benefit for gaming and real-time applications."
   },
   {
     title: "Enable Receive Side Scaling (RSS)",
-    description: "Enables Receive Side Scaling which distributes incoming network packet processing across multiple CPU cores instead of all being handled by a single core. Prevents network bottlenecks on high-speed connections and reduces CPU latency spikes during heavy online gaming or streaming.",
+    description: "Enables Receive Side Scaling which distributes incoming network packet processing across multiple CPU cores instead of funneling all traffic through a single core. On high-speed connections (100Mbps+) a single core can become a bottleneck. RSS eliminates this and reduces CPU latency spikes during heavy online gaming or streaming.",
     category: "network",
     isActive: false,
     warning: null,
-    featureBreaks: "No negative effects. Improves multi-core utilization for network workloads."
+    featureBreaks: "No negative effects. Improves multi-core CPU utilization for network traffic. Effective on connections of 100Mbps and above."
   },
   {
     title: "Disable Delivery Optimization Service",
-    description: "Disables the Windows Update Delivery Optimization service which uploads Windows updates from your PC to other people's computers over the internet as a P2P distribution network. This uses your upload bandwidth without asking permission. Disabling it stops this behavior entirely.",
+    description: "Disables the Windows Update Delivery Optimization service which silently uses your upload bandwidth to distribute Windows updates to other people's PCs over the internet, acting as a P2P node. Microsoft enables this by default without prominently informing users. Disabling stops all P2P upload activity.",
     category: "network",
     isActive: false,
     warning: null,
-    featureBreaks: "Your PC will no longer serve Windows update files to other PCs. Your own Windows updates are unaffected — they still download from Microsoft directly."
+    featureBreaks: "Your PC will no longer upload Windows update files to other PCs on the internet. Your own Windows updates download directly from Microsoft and are completely unaffected."
   },
   {
     title: "Disable Windows Connect Now (wcncsvc)",
-    description: "Disables the Windows Connect Now service used for pairing with wireless devices and network routers using the WCN protocol (primarily for WPS setup). This service listens on the network and is unnecessary on configured home networks.",
+    description: "Disables the Windows Connect Now service which listens on the network for WPS-based device pairing requests. It's designed for initial Wi-Fi setup of printers and routers and has no purpose once your network is configured. Disabling removes an unnecessary network listener.",
     category: "network",
     isActive: false,
     warning: null,
-    featureBreaks: "Cannot use Windows Connect Now to automatically configure wireless devices. Normal Wi-Fi connection and internet access unaffected."
+    featureBreaks: "Cannot use Windows Connect Now wizard to automatically configure new wireless devices. Normal Wi-Fi, internet access, and printer usage are completely unaffected."
   },
   {
     title: "Disable LLMNR Protocol",
-    description: "Disables Link-Local Multicast Name Resolution, a name-resolution protocol that broadcasts queries on the local network when DNS fails. LLMNR is exploited by LLMNR poisoning attacks (a common network attack on Windows). Home PCs do not need it — DNS handles all name resolution.",
+    description: "Disables Link-Local Multicast Name Resolution — a fallback name-resolution protocol that broadcasts DNS-style queries over the local network when DNS fails to resolve. LLMNR is trivially exploited by LLMNR poisoning attacks (Responder tool) which intercept credentials. Home PCs don't need it — DNS handles all name resolution.",
     category: "network",
     isActive: false,
-    warning: null,
-    featureBreaks: "Local network hostname resolution falls back to DNS only. No effect on internet access or normal file sharing."
+    warning: "DOMAIN USERS: If your PC is joined to a Windows domain and resolves internal hostnames, verify DNS is properly configured before disabling LLMNR, as some domain environments fall back to LLMNR.",
+    featureBreaks: "Local network name resolution falls back to DNS only. No effect on internet access, normal file sharing, or gaming."
   },
   {
     title: "Disable mDNS Multicast",
-    description: "Disables Windows mDNS (Multicast DNS) which broadcasts discovery packets on the local network for finding printers and devices. While useful for some setups, it generates constant background network traffic and can expose the PC's presence on the network.",
+    description: "Disables Windows mDNS (Multicast DNS) which broadcasts .local domain lookup packets on your LAN to discover printers and devices. While useful for some setups, it generates constant background network chatter and announces your PC's presence on the network to all devices.",
     category: "network",
     isActive: false,
-    warning: "Do NOT disable if you use mDNS-based device discovery (Apple Bonjour, AirPrint, Chromecast, etc.) on your local network.",
-    featureBreaks: "mDNS device discovery disabled. AirPrint, Chromecast, and Bonjour-based printers may not be discoverable automatically."
+    warning: "Do NOT disable if you use mDNS-based device discovery on your local network — this includes Apple AirPrint printers, Chromecast, Apple TV, Bonjour-dependent software, and some smart home devices.",
+    featureBreaks: "mDNS-based device auto-discovery disabled. AirPrint, Chromecast, and Bonjour-based printers may not be found automatically on the network."
   },
 
   // ── SERVICES (Windows Service Optimization) ───────────────────────────────
