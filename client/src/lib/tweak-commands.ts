@@ -90,6 +90,7 @@ reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\SettingSync" /v DisableSe
 reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\SettingSync" /v DisableSettingSyncUserOverride /t REG_DWORD /d 1 /f
 # ── LOCATION SERVICES (L001/L003/L005) ───────────────────────────────────
 reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\LocationAndSensors" /v DisableLocation /t REG_DWORD /d 1 /f
+reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\LocationAndSensors" /v DisableWindowsLocationProvider /t REG_DWORD /d 1 /f
 reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\LocationAndSensors" /v DisableLocationScripting /t REG_DWORD /d 1 /f
 Set-Service -Name lfsvc -StartupType Disabled -ErrorAction SilentlyContinue
 Stop-Service -Name lfsvc -ErrorAction SilentlyContinue
