@@ -1,6 +1,5 @@
 import type { Express } from "express";
 import type { Server } from "http";
-import { registerStoreRoutes } from "./store";
 import { storage } from "./storage";
 import { z } from "zod";
 import si from "systeminformation";
@@ -372,7 +371,6 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   await seedTweaksIfNeeded();
-  registerStoreRoutes(app);
 
   // ── System Info ────────────────────────────────────────────────────────────
   app.get("/api/system/info", async (_req, res) => {
