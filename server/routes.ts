@@ -797,6 +797,30 @@ $d['Disable Program Compatibility Assistant (PcaSvc)']=csvc 'PcaSvc'
 $d['Disable Touch Keyboard Service (TabletInputService)']=csvc 'TabletInputService'
 $d['Disable Windows Insider Service (wisvc)']=csvc 'wisvc'
 
+# Debloat (individual)
+try{$od=Test-Path "$env:LOCALAPPDATA\\Microsoft\\OneDrive\\OneDrive.exe";$d['Uninstall OneDrive']=if($od){0}else{1}}catch{$d['Uninstall OneDrive']=0}
+$d['Disable Windows Widgets']=creg 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh' 'AllowNewsAndInterests' 0
+$d['Disable Consumer Features & Silent App Installs']=creg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent' 'DisableWindowsConsumerFeatures' 1
+$d['Enable End Task in Taskbar Right-Click']=creg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings' 'TaskbarEndTask' 1
+$d['Show Hidden Files & File Extensions']=creg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'Hidden' 1
+$d['Remove Home & Gallery from Explorer']=creg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'LaunchTo' 1
+$d['Disable Storage Sense']=creg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\StorageSense' 'AllowStorageSenseGlobal' 0
+$d['Disable Sticky Keys Shortcut']=creg 'HKCU:\Control Panel\Accessibility\StickyKeys' 'Flags' '506'
+$d['Apply Windows Dark Theme']=creg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' 'AppsUseLightTheme' 0
+# Gaming (additional)
+try{$ter=(netsh interface teredo show state 2>$null) -join ' ';$d['Disable Teredo IPv6 Tunneling']=if($ter -match 'disabled'){1}else{0}}catch{$d['Disable Teredo IPv6 Tunneling']=0}
+try{$bcd=(bcdedit /enum 2>$null) -join ' ';$d['Disable HPET (Platform Clock)']=if($bcd -match 'useplatformclock\s+No'){1}else{0}}catch{$d['Disable HPET (Platform Clock)']=0}
+$d['Disable Auto-Restart After Windows Updates']=creg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' 'NoAutoRebootWithLoggedOnUsers' 1
+# Network (additional)
+try{$6t=(netsh interface 6to4 show state 2>$null) -join ' ';$d['Disable 6to4 & ISATAP Tunneling']=if($6t -match 'disabled'){1}else{0}}catch{$d['Disable 6to4 & ISATAP Tunneling']=0}
+# Services (additional)
+$d['Disable IP Helper Service (iphlpsvc)']=csvc 'iphlpsvc'
+$d['Disable Diagnostic Policy Service (DPS)']=csvc 'DPS'
+$d['Disable Connected Devices Platform (CDPSvc)']=csvc 'CDPSvc'
+# Performance (additional)
+$d['Clear Page File on Shutdown']=creg 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' 'ClearPageFileAtShutdown' 1
+$d['Disable Transparency Effects']=creg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' 'EnableTransparency' 0
+
 $d | ConvertTo-Json -Compress`;
 
       // Run PS script — retry once if output is empty/missing
