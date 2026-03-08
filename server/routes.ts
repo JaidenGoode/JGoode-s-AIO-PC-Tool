@@ -776,18 +776,24 @@ try{
 # SMBv1: check server config
 try{$smb=(Get-SmbServerConfiguration -EA Stop).EnableSMB1Protocol;$d['Disable SMBv1 Protocol']=if($smb -eq $false){1}else{0}}catch{$d['Disable SMBv1 Protocol']=0}
 
-# LSO: check if disabled on at least one physical adapter
+# LSO: check LsoV2IPv4/LsoV2IPv6 — the correct Get-NetAdapterLso property names
 try{
   $lsoOff=0
   $lsoAdapters=Get-NetAdapter -Physical -EA Stop
   foreach($la in $lsoAdapters){
-    try{$lsoState=Get-NetAdapterLso -Name $la.Name -EA Stop;if($lsoState.IPv4 -eq 'Disabled' -and $lsoState.IPv6 -eq 'Disabled'){$lsoOff=1;break}}catch{}
+    try{
+      $lso=Get-NetAdapterLso -Name $la.Name -EA Stop
+      $v4=$lso.LsoV2IPv4; $v6=$lso.LsoV2IPv6
+      $v4off=($v4 -eq $false)-or($v4 -eq 0)-or("$v4" -eq 'Disabled')
+      $v6off=($v6 -eq $false)-or($v6 -eq 0)-or("$v6" -eq 'Disabled')
+      if($v4off -and $v6off){$lsoOff=1;break}
+    }catch{}
   }
   $d['Disable Large Send Offload (LSO)']=$lsoOff
 }catch{$d['Disable Large Send Offload (LSO)']=0}
 
-# RSS: check via netsh
-try{$rssOut=(netsh int tcp show global 2>$null) -join ' ';$d['Enable Receive Side Scaling (RSS)']=if($rssOut -match 'Receive-Side Scaling.+enabled'){1}else{0}}catch{$d['Enable Receive Side Scaling (RSS)']=0}
+# RSS: case-insensitive match on netsh tcp global output
+try{$rssOut=(netsh int tcp show global 2>$null) -join ' ';$d['Enable Receive Side Scaling (RSS)']=if($rssOut -imatch 'Receive-Side Scaling.+enabled'){1}else{0}}catch{$d['Enable Receive Side Scaling (RSS)']=0}
 
 # More services
 $d['Disable Print Spooler (Spooler)']=csvc 'Spooler'
