@@ -401,6 +401,11 @@ export default function Tweaks() {
     setSelectedIds(new Set());
   };
 
+  const handleRevertOne = async (tweak: { id: number; title: string; isActive: boolean }) => {
+    if (isRunning) return;
+    await runRevertScript([tweak], `Reverting "${tweak.title}"`);
+  };
+
   const filteredTweaks = tweaks?.filter((tweak) => {
     const matchesSearch =
       tweak.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -503,7 +508,9 @@ export default function Tweaks() {
           </div>
           <div className="flex items-center justify-between pt-0.5">
             <p className="text-[10px] text-muted-foreground/40">
-              {isRunning ? "Do not close — optimization in progress" : "Optimization complete"}
+              {isRunning
+                ? (dialogMode === "revert" ? "Do not close — revert in progress" : "Do not close — optimization in progress")
+                : (dialogMode === "revert" ? "Revert complete" : "Optimization complete")}
             </p>
             <Button
               size="sm"
@@ -914,6 +921,18 @@ export default function Tweaks() {
                           >
                             <Terminal className="h-2.5 w-2.5" />
                             {isOptimized ? "Undo CMD" : "View CMD"}
+                          </button>
+                        )}
+                        {isOptimized && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRevertOne(tweak); }}
+                            disabled={isRunning}
+                            className="flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded border border-red-500/40 bg-red-500/8 text-red-400 hover:bg-red-500/18 hover:border-red-500/60 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                            data-testid={`button-revert-one-${tweak.id}`}
+                            title={`Revert "${tweak.title}" back to Windows default`}
+                          >
+                            <RotateCcw className="h-2.5 w-2.5" />
+                            Revert
                           </button>
                         )}
                         {isSelected && !isOptimized && (
