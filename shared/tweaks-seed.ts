@@ -979,6 +979,116 @@ export const TWEAKS_SEED: TweakSeed[] = [
     featureBreaks: "Nearby Sharing, Continue on PC, cross-device clipboard, and some Bluetooth pairing workflows disabled. No effect on normal internet, gaming, or file transfers."
   },
 
+  // ── GAMING (Razer Cortex Speed Up style) ─────────────────────────────────
+  {
+    title: "Disable USB Selective Suspend",
+    description: "Prevents Windows from power-suspending USB devices after periods of inactivity. USB Selective Suspend can cause input devices — mice, keyboards, and gamepads — to momentarily disconnect or introduce input lag spikes when the device wakes from a suspended state during gaming.",
+    category: "gaming",
+    isActive: false,
+    warning: "LAPTOP USERS: Disabling this will slightly increase battery drain as USB devices remain powered continuously. Desktop users have no drawback.",
+    featureBreaks: "USB devices remain fully powered at all times. Eliminates USB input lag spikes during gaming. Slightly higher power draw on battery."
+  },
+  {
+    title: "Set TSC Sync Policy (Precise Game Timing)",
+    description: "Configures the processor's Time Stamp Counter synchronization policy to Enhanced mode via bcdedit. This ensures all CPU cores share a precisely synchronized clock source, reducing timer inconsistencies that cause micro-stutter and frame time variance in games and high-refresh-rate applications.",
+    category: "gaming",
+    isActive: false,
+    warning: "Requires a system restart to take effect. Supported on all modern Intel and AMD Ryzen processors.",
+    featureBreaks: "Restart required. Improves timer accuracy for games and high-refresh displays. No other effects."
+  },
+  {
+    title: "Disable GameInput Service (gaminputsvc)",
+    description: "Disables the GameInput service introduced in Windows 11, which provides a unified input API layer. This service runs in the background on every Windows 11 install. Most games use DirectInput or XInput directly and do not need this service at all.",
+    category: "gaming",
+    isActive: false,
+    warning: "Some newer Windows 11 games that specifically use the GameInput API may experience controller input issues. Most games (Fortnite, Call of Duty, CS2, and all legacy titles) use DirectInput or XInput and are unaffected.",
+    featureBreaks: "GameInput API unavailable. Affects only games coded specifically to use the Windows 11 GameInput API. Standard XInput/DirectInput controller support is unaffected."
+  },
+
+  // ── NETWORK (Razer Cortex Speed Up style) ────────────────────────────────
+  {
+    title: "Enable TCP Fast Open",
+    description: "Enables TCP Fast Open (TFO) which allows TCP connections to include data in the initial handshake packet, eliminating a full round-trip time for frequently-visited servers. Reduces connection setup latency for web browsing, gaming server connections, and any TCP-based communication.",
+    category: "network",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Safe to enable — falls back to standard TCP handshake if the server does not support TFO. No negative effects."
+  },
+  {
+    title: "Disable NIC Interrupt Moderation",
+    description: "Disables Interrupt Moderation (also called Interrupt Coalescing) on physical network adapters. Interrupt Moderation batches multiple network interrupt signals before triggering the CPU, adding latency to every packet. Disabling it ensures each packet triggers an immediate CPU interrupt — critical for competitive gaming and low-latency applications.",
+    category: "network",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Slightly higher CPU utilization from the network adapter under heavy load. Reduces latency but increases CPU interrupts. Ideal for gaming; less impactful for large file transfers."
+  },
+
+  // ── SERVICES (Windows Service Optimization) ───────────────────────────────
+  {
+    title: "Disable Secondary Logon (seclogon)",
+    description: "Disables the Secondary Logon service which enables the Run as different user functionality. Most home and gaming PC users never use this feature — the service sits idle consuming memory and is an unnecessary attack surface.",
+    category: "services",
+    isActive: false,
+    warning: null,
+    featureBreaks: "The Run as different user right-click option will not work. No effect for personal or gaming use."
+  },
+  {
+    title: "Disable WMI Performance Adapter (wmiApSrv)",
+    description: "Disables the WMI Performance Adapter which provides performance counter information through Windows Management Instrumentation. Only required by third-party performance monitoring and enterprise management software — not needed for gaming or standard use.",
+    category: "services",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Third-party performance monitoring tools that query WMI counters may not read data. No effect on gaming or standard applications."
+  },
+  {
+    title: "Disable TCP/IP NetBIOS Helper (lmhosts)",
+    description: "Disables the TCP/IP NetBIOS Helper service which enables legacy NetBIOS over TCP/IP hostname resolution — a pre-DNS Windows networking remnant from the 1990s. On modern networks using DNS for name resolution, this service provides zero benefit and runs permanently in the background.",
+    category: "services",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Legacy NetBIOS hostname resolution disabled. Modern network shares accessed by IP or DNS name are fully unaffected."
+  },
+  {
+    title: "Disable Telephony Service (TapiSrv)",
+    description: "Disables the Telephony (TAPI) service which manages physical telephone lines, modems, and dial-up connections. On any PC without a physical modem or legacy dial-up hardware, this service runs at startup permanently for no reason.",
+    category: "services",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Modem, dial-up, and TAPI-based VoIP applications will not work. No effect on broadband internet or modern VoIP apps like Discord, Teams, or Zoom."
+  },
+  {
+    title: "Disable Still Image Service (StiSvc)",
+    description: "Disables the Windows Still Image service which manages USB-connected scanners and digital cameras via the Windows Image Acquisition (WIA) protocol. If you do not use a standalone scanner or a digital camera that connects via USB for image transfer, this service is completely unnecessary.",
+    category: "services",
+    isActive: false,
+    warning: "Do NOT disable if you use a USB scanner or a digital camera connected to your PC for importing photos via Windows camera import.",
+    featureBreaks: "USB scanners and WIA-compatible cameras will not be recognized for photo import. Webcams used for video calls are unaffected."
+  },
+  {
+    title: "Disable Bluetooth Support Service (bthserv)",
+    description: "Disables the Bluetooth Support Service entirely. If your PC has no Bluetooth hardware, or you exclusively use wired peripherals and never connect Bluetooth devices, this service runs in the background consuming resources for no benefit.",
+    category: "services",
+    isActive: false,
+    warning: "Do NOT disable if you use a Bluetooth mouse, keyboard, headset, controller, or any other Bluetooth peripheral. Only apply on PCs where no Bluetooth devices are ever used.",
+    featureBreaks: "All Bluetooth devices will stop working — mice, keyboards, headsets, controllers, speakers. Disable only if you use zero Bluetooth peripherals."
+  },
+  {
+    title: "Disable Net.TCP Port Sharing (NetTcpPortSharing)",
+    description: "Disables the .NET TCP Port Sharing service which allows multiple applications to share the same TCP port via the .NET WCF (Windows Communication Foundation) framework. This is a purely enterprise feature — no consumer software, game, or standard desktop application requires it.",
+    category: "services",
+    isActive: false,
+    warning: null,
+    featureBreaks: "WCF enterprise applications using .NET TCP port sharing will not function. No effect on games, streaming, browsers, or standard desktop apps."
+  },
+  {
+    title: "Disable Remote Access Manager (RasMan)",
+    description: "Disables the Remote Access Connection Manager which handles Windows' built-in VPN connections, dial-up connections, and the L2TP/PPTP/SSTP VPN protocols. If you never use Windows' built-in VPN client, this service runs at startup permanently for no reason.",
+    category: "services",
+    isActive: false,
+    warning: "Do NOT disable if you use Windows built-in VPN client (Settings → Network → VPN) or any corporate L2TP/PPTP/IKEv2 VPN. Third-party VPN apps (NordVPN, ExpressVPN) that use their own tunnel driver typically work independently — test before applying.",
+    featureBreaks: "Windows built-in VPN client and dial-up connections disabled. Some third-party VPN clients that rely on the RAS infrastructure may also stop working."
+  },
+
   // ── PERFORMANCE (additional) ─────────────────────────────────────────────
   {
     title: "Clear Page File on Shutdown",
