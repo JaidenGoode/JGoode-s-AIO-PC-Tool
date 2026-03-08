@@ -98,7 +98,7 @@ export default function DNSManager() {
     <div className="space-y-5 pb-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          <h1 className="text-2xl font-black text-foreground tracking-tight">
             DNS <span className="text-primary">Manager</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
