@@ -107,6 +107,7 @@ export default function Tweaks() {
   const [applyingAll, setApplyingAll] = useState(false);
   const [showRunDialog, setShowRunDialog] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"apply" | "revert">("apply");
   const [scriptOutput, setScriptOutput] = useState<Array<{ type: string; text: string }>>([]);
   const terminalRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -161,6 +162,7 @@ export default function Tweaks() {
     const titles = selectedTweaks.map(t => t.title);
     setApplyingAll(true);
     setIsRunning(true);
+    setDialogMode("apply");
 
     if (window.electronAPI?.runScript) {
       const tempTweaks = selectedTweaks.map(t => ({ title: t.title, isActive: true }));
@@ -319,6 +321,86 @@ export default function Tweaks() {
     toast({ title: "Undo script downloaded", description: "Run as Administrator to revert all optimized tweaks." });
   };
 
+  const runRevertScript = async (tweaksToRevert: Array<{ title: string; isActive: boolean }>, label: string) => {
+    const titles = tweaksToRevert.map(t => t.title);
+    setDialogMode("revert");
+    setIsRunning(true);
+
+    if (window.electronAPI?.runScript) {
+      const script = generateUndoScript(tweaksToRevert);
+      if (!script) { setIsRunning(false); return; }
+
+      setScriptOutput([{ type: "info", text: `# JGoode's A.I.O PC Tool — ${label}\n# Running as Administrator...\n` }]);
+      setShowRunDialog(true);
+
+      const safetyTimeout = setTimeout(() => {
+        setIsRunning(false);
+        cleanupRef.current?.();
+        cleanupRef.current = null;
+        queryClient.setQueryData<Array<{ id: number; title: string; isActive: boolean }>>(["/api/tweaks"], (old) =>
+          old ? old.map(t => titles.includes(t.title) ? { ...t, isActive: false } : t) : old
+        );
+        bulkMutation.mutate({ titles, isActive: false });
+        triggerDetect(800);
+      }, 120000);
+
+      cleanupRef.current = window.electronAPI.onScriptOutput((data) => {
+        if (data.type === "done") {
+          clearTimeout(safetyTimeout);
+          setIsRunning(false);
+          setScriptOutput((prev) => [
+            ...prev,
+            {
+              type: data.code === 0 ? "success" : "stderr",
+              text: data.code === 0
+                ? `\n\u2713 ${tweaksToRevert.length} tweak${tweaksToRevert.length !== 1 ? "s" : ""} reverted to Windows defaults.`
+                : `\n\u26a0 Completed with errors (exit code: ${data.code})`,
+            },
+          ]);
+          queryClient.setQueryData<Array<{ id: number; title: string; isActive: boolean }>>(["/api/tweaks"], (old) =>
+            old ? old.map(t => titles.includes(t.title) ? { ...t, isActive: false } : t) : old
+          );
+          bulkMutation.mutate({ titles, isActive: false });
+          triggerDetect(800);
+        } else if (data.text) {
+          setScriptOutput((prev) => [...prev, { type: data.type, text: data.text ?? "" }]);
+          if (terminalRef.current) terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+        }
+      });
+
+      try { await window.electronAPI.runScript(script); } catch {
+        clearTimeout(safetyTimeout);
+        setIsRunning(false);
+      }
+    } else {
+      // Non-Electron fallback: just update the DB and download script
+      exportUndoScript();
+      bulkMutation.mutate({ titles, isActive: false });
+      setIsRunning(false);
+    }
+  };
+
+  const handleRevertAll = async () => {
+    if (!tweaks) return;
+    const activeTweaks = tweaks.filter(t => t.isActive);
+    if (activeTweaks.length === 0) {
+      toast({ title: "Nothing to revert", description: "No tweaks are currently applied.", variant: "destructive" });
+      return;
+    }
+    await runRevertScript(activeTweaks, `Reverting all ${activeTweaks.length} applied tweaks`);
+  };
+
+  const handleRevertSelected = async () => {
+    if (!tweaks || selectedIds.size === 0) return;
+    const selectedActive = tweaks.filter(t => selectedIds.has(t.id) && t.isActive);
+    if (selectedActive.length === 0) {
+      toast({ title: "Nothing to revert", description: "None of the selected tweaks are currently applied.", variant: "destructive" });
+      return;
+    }
+    await runRevertScript(selectedActive, `Reverting ${selectedActive.length} selected tweak${selectedActive.length !== 1 ? "s" : ""}`);
+    setSelectedIds(new Set());
+  };
+
   const filteredTweaks = tweaks?.filter((tweak) => {
     const matchesSearch =
       tweak.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -390,11 +472,13 @@ export default function Tweaks() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm font-bold">
               <Terminal className="h-4 w-4 text-primary" />
-              {isRunning ? "Optimizing..." : "Optimization Complete"}
+              {isRunning
+                ? (dialogMode === "revert" ? "Reverting..." : "Optimizing...")
+                : (dialogMode === "revert" ? "Revert Complete" : "Optimization Complete")}
               {isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary ml-1" />}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              PowerShell output — requires Administrator to apply tweaks.
+              PowerShell output — requires Administrator to run.
             </DialogDescription>
           </DialogHeader>
           <div
@@ -493,6 +577,22 @@ export default function Tweaks() {
                 <span className="px-1.5 py-0.5 rounded text-[9px] bg-white/20 font-bold">{selectedCount}</span>
               </Button>
             )}
+            {selectedCount > 0 && tweaks?.some(t => selectedIds.has(t.id) && t.isActive) && (
+              <Button
+                size="sm"
+                onClick={handleRevertSelected}
+                disabled={isRunning || isBulkPending}
+                className="h-8 gap-1.5 text-xs font-bold shrink-0 border border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/70"
+                data-testid="button-revert-selected"
+                title="Revert selected applied tweaks back to Windows defaults"
+              >
+                {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                Revert Selected
+                <span className="px-1.5 py-0.5 rounded text-[9px] bg-red-500/20 font-bold">
+                  {tweaks?.filter(t => selectedIds.has(t.id) && t.isActive).length}
+                </span>
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={exportScript}
@@ -512,13 +612,14 @@ export default function Tweaks() {
             {optimizedCount > 0 && (
               <Button
                 size="sm"
-                onClick={exportUndoScript}
-                className="h-8 gap-1.5 text-xs font-semibold shrink-0 bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/60 hover:border-border"
-                data-testid="button-export-undo-script"
-                title="Download a script that reverts all optimized tweaks"
+                onClick={handleRevertAll}
+                disabled={isRunning || isBulkPending}
+                className="h-8 gap-1.5 text-xs font-semibold shrink-0 border border-red-500/30 bg-red-500/8 text-red-400/80 hover:bg-red-500/15 hover:text-red-300 hover:border-red-500/50"
+                data-testid="button-revert-all"
+                title="Revert ALL applied tweaks back to Windows defaults"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
-                Undo Script
+                Revert All ({optimizedCount})
               </Button>
             )}
           </div>
