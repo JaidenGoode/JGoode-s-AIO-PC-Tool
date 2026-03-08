@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   HardDrive, Cpu, Zap, RefreshCw, Network, ShieldCheck,
-  AlertTriangle, MapPin, Loader2, ChevronDown, Shield, Download, ExternalLink, CheckCircle2,
+  AlertTriangle, MapPin, Loader2, ChevronDown, Shield, Download, CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
