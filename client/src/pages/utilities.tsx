@@ -139,7 +139,7 @@ export default function Utilities() {
   return (
     <div className="space-y-5 pb-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">
+        <h1 className="text-2xl font-black text-foreground tracking-tight">
           System <span className="text-primary">Utilities</span>
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">Run as Administrator for full effect</p>
