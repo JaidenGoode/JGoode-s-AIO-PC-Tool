@@ -829,6 +829,39 @@ $d['Disable Transparency Effects']=creg 'HKCU:\Software\Microsoft\Windows\Curren
 $d['Disable Windows Platform Binary Table (WPBT)']=creg 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\WPBT' 'Disable' 1
 try{$ft=(Get-ItemProperty 'HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell' 'FolderType' -EA Stop).FolderType;$d['Disable Automatic Explorer Folder Discovery']=if($ft -eq 'NotSpecified'){1}else{0}}catch{$d['Disable Automatic Explorer Folder Discovery']=0}
 
+# Gaming (Razer Cortex Speed Up style)
+try{
+  $usbGuid="2a737441-1930-4402-8d77-b2bebba308a3"
+  $usbSub="48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
+  $usbOut=(powercfg /query SCHEME_CURRENT $usbGuid $usbSub 2>$null) -join ' '
+  $d['Disable USB Selective Suspend']=if($usbOut -match 'Current AC Power Setting Index: 0x00000000'){1}else{0}
+}catch{$d['Disable USB Selective Suspend']=0}
+try{$bcd=(bcdedit /enum 2>$null) -join ' ';$d['Set TSC Sync Policy (Precise Game Timing)']=if($bcd -match 'tscsyncpolicy\s+Enhanced'){1}else{0}}catch{$d['Set TSC Sync Policy (Precise Game Timing)']=0}
+$d['Disable GameInput Service (gaminputsvc)']=csvc 'gaminputsvc'
+
+# Network (Razer Cortex Speed Up style)
+try{$tcpg=(netsh int tcp show global 2>$null) -join ' ';$d['Enable TCP Fast Open']=if($tcpg -imatch 'Fast Open.*Enabled'){1}else{0}}catch{$d['Enable TCP Fast Open']=0}
+try{
+  $imOff=0
+  Get-NetAdapter -Physical -EA Stop | ForEach-Object {
+    try{
+      $im=Get-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*InterruptModeration" -EA Stop
+      if($im -and ($im.RegistryValue -eq 0 -or $im.RegistryValue -eq '0')){$imOff=1}
+    }catch{}
+  }
+  $d['Disable NIC Interrupt Moderation']=$imOff
+}catch{$d['Disable NIC Interrupt Moderation']=0}
+
+# Services (Windows Service Optimization)
+$d['Disable Secondary Logon (seclogon)']=csvc 'seclogon'
+$d['Disable WMI Performance Adapter (wmiApSrv)']=csvc 'wmiApSrv'
+$d['Disable TCP/IP NetBIOS Helper (lmhosts)']=csvc 'lmhosts'
+$d['Disable Telephony Service (TapiSrv)']=csvc 'TapiSrv'
+$d['Disable Still Image Service (StiSvc)']=csvc 'StiSvc'
+$d['Disable Bluetooth Support Service (bthserv)']=csvc 'bthserv'
+$d['Disable Net.TCP Port Sharing (NetTcpPortSharing)']=csvc 'NetTcpPortSharing'
+$d['Disable Remote Access Manager (RasMan)']=csvc 'RasMan'
+
 $d | ConvertTo-Json -Compress`;
 
       // Run PS script — retry once if output is empty/missing
