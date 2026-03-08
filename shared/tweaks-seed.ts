@@ -18,6 +18,80 @@ export const TWEAKS_SEED: TweakSeed[] = [
     featureBreaks: "OneDrive removed. Widgets disabled. Some Microsoft features/services disabled. Storage Sense off. Sticky Keys disabled. Reversible individually."
   },
 
+  // ── DEBLOAT (individual) ─────────────────────────────────────────────────────
+  {
+    title: "Uninstall OneDrive",
+    description: "Terminates and fully uninstalls Microsoft OneDrive from the system. Removes the OneDrive process, runs the uninstaller, and clears OneDrive integration from Explorer. OneDrive can be reinstalled at any time from Microsoft's website if needed.",
+    category: "debloat",
+    isActive: false,
+    warning: "This permanently uninstalls OneDrive. Any files stored exclusively in OneDrive cloud (not synced locally) should be downloaded first. Local files already synced to your PC are safe.",
+    featureBreaks: "OneDrive cloud sync and backup will stop. Files in OneDrive are not deleted — they remain accessible via OneDrive.com. Reinstall from microsoft.com/onedrive if needed."
+  },
+  {
+    title: "Disable Windows Widgets",
+    description: "Disables the Windows Widgets panel (the weather/news taskbar button) and the underlying news feed service. Widgets run a background process and load web content even when you're not looking at them. Disabling removes this entirely from the taskbar.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Widgets taskbar button removed. Weather, news, and stock widgets unavailable. Can be re-enabled in Taskbar Settings."
+  },
+  {
+    title: "Disable Consumer Features & Silent App Installs",
+    description: "Prevents Windows from silently installing suggested apps (games, apps Microsoft gets paid to promote) and disables the Consumer Features system that pushes OEM pre-installed apps and promotional content. Without this tweak, Windows can silently add apps like Candy Crush to your Start menu.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Microsoft-suggested apps will no longer be silently installed. Start menu promotions disabled."
+  },
+  {
+    title: "Enable End Task in Taskbar Right-Click",
+    description: "Adds an 'End Task' option to the right-click context menu on taskbar buttons, letting you instantly kill a frozen or unresponsive program without opening Task Manager. A useful quality-of-life addition missing from Windows by default.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "None. Adds End Task to taskbar right-click menu only."
+  },
+  {
+    title: "Show Hidden Files & File Extensions",
+    description: "Configures File Explorer to show hidden files, folders, and system files, and removes the hiding of known file extensions (e.g. showing 'document.docx' instead of just 'document'). Hiding extensions is a common social engineering attack vector — seeing the real extension helps identify malicious files.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Hidden system files and folders become visible in Explorer. File names show their extension (e.g. .exe, .docx, .jpg). No negative effects."
+  },
+  {
+    title: "Remove Home & Gallery from Explorer",
+    description: "Removes the 'Home' and 'Gallery' sections from the File Explorer left navigation pane and sets Explorer to open to 'This PC' by default instead of the Home view. Reduces clutter and opens Explorer directly to your drives.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Explorer opens to This PC instead of Home. Home and Gallery removed from sidebar. All files remain accessible."
+  },
+  {
+    title: "Disable Storage Sense",
+    description: "Disables Windows Storage Sense which automatically deletes temporary files, empties the Recycle Bin, and cleans up old downloads on a schedule. On a gaming PC you likely manage storage manually — automatic cleanup can unexpectedly delete files you haven't finished with.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Automatic disk cleanup disabled. Run Disk Cleanup manually when needed. Files in Recycle Bin are not auto-deleted."
+  },
+  {
+    title: "Disable Sticky Keys Shortcut",
+    description: "Disables the Sticky Keys, Toggle Keys, and Filter Keys accessibility shortcuts that trigger when you press Shift 5 times (or hold it down). These popups interrupt gaming constantly and offer no benefit to users who don't need them.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Sticky Keys, Toggle Keys, and Filter Keys keyboard shortcuts disabled. Accessibility features can still be enabled manually via Settings."
+  },
+  {
+    title: "Apply Windows Dark Theme",
+    description: "Sets Windows to use the dark color scheme for both apps and the system UI (taskbar, Start menu, settings). Dark mode reduces eye strain in low-light environments and is the standard choice for most gamers and power users.",
+    category: "debloat",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Windows switches to dark mode. Apps that respect the system theme will also switch to dark mode."
+  },
+
   // ── PRIVACY ──────────────────────────────────────────────────────────────────
   {
     title: "Disable Telemetry & Data Collection",
@@ -286,6 +360,30 @@ export const TWEAKS_SEED: TweakSeed[] = [
     isActive: false,
     warning: null,
     featureBreaks: "Marginally higher bandwidth usage due to smaller, more frequent packets. Benefit is lower and more consistent in-game ping."
+  },
+  {
+    title: "Disable Teredo IPv6 Tunneling",
+    description: "Disables Teredo — a legacy IPv6 tunneling technology that encapsulates IPv6 packets inside IPv4 UDP, creating background connections to Microsoft Teredo relay servers. On gaming PCs with a direct internet connection, Teredo adds latency, creates unnecessary outbound traffic, and is exploited as an attack surface. Disabling it forces direct connections.",
+    category: "gaming",
+    isActive: false,
+    warning: "If you use Xbox services, Xbox Play Anywhere, or some online games that require Teredo for NAT traversal (particularly Xbox-related titles), re-enable this if you experience connection issues.",
+    featureBreaks: "Teredo tunneling disabled. Some Xbox-related game connectivity features may require re-enabling. No effect on most gaming."
+  },
+  {
+    title: "Disable HPET (Platform Clock)",
+    description: "Disables the High Precision Event Timer (HPET) as the Windows platform clock source via boot configuration. HPET is a hardware timer that Windows uses for scheduling — on many modern CPUs (especially Intel and AMD Ryzen), switching away from HPET to the TSC (CPU's own clock) reduces timer overhead, improves timer resolution consistency, and can lower input latency and micro-stutter in games.",
+    category: "gaming",
+    isActive: false,
+    warning: "Requires a system restart to take effect. On some older systems or specific hardware combinations, disabling HPET may cause instability. Test after reboot — re-enable if you experience BSODs or timing issues.",
+    featureBreaks: "Restart required. Windows uses TSC/PM timer instead of HPET. May reduce micro-stutter and improve frame time consistency on modern hardware."
+  },
+  {
+    title: "Disable Auto-Restart After Windows Updates",
+    description: "Prevents Windows from automatically rebooting your PC after installing updates — even when you're in the middle of a game or important work. Windows normally schedules forced restarts and can interrupt active sessions. This tweak keeps your PC running until you choose to restart.",
+    category: "gaming",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Windows will not auto-restart after updates. You must restart manually to apply updates. Update restarts are still available from Windows Update settings."
   },
   {
     title: "Disable Xbox Core Services",
@@ -670,6 +768,15 @@ export const TWEAKS_SEED: TweakSeed[] = [
     featureBreaks: "mDNS-based device auto-discovery disabled. AirPrint, Chromecast, and Bonjour-based printers may not be found automatically on the network."
   },
 
+  {
+    title: "Disable 6to4 & ISATAP Tunneling",
+    description: "Disables 6to4 and ISATAP — two legacy IPv6 transition mechanisms that automatically tunnel IPv6 traffic over IPv4 networks. Like Teredo, these create unnecessary background network traffic and attempt connections to external relay infrastructure. On modern networks with native IPv4/IPv6 support, these tunneling methods serve no purpose.",
+    category: "network",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Legacy IPv6 tunneling via 6to4 and ISATAP disabled. No effect on native IPv4 or IPv6 connections."
+  },
+
   // ── SERVICES (Windows Service Optimization) ───────────────────────────────
   {
     title: "Disable BranchCache (PeerDistSvc)",
@@ -830,5 +937,47 @@ export const TWEAKS_SEED: TweakSeed[] = [
     isActive: false,
     warning: "Do NOT disable if you are enrolled in the Windows Insider Program (receiving Preview builds).",
     featureBreaks: "Windows Insider Preview builds will not be delivered. No effect if you are on a stable Windows release."
+  },
+  {
+    title: "Disable IP Helper Service (iphlpsvc)",
+    description: "Disables the IP Helper service which provides automatic IPv6 connectivity (Teredo, 6to4, ISATAP tunnel management) and assists with network configuration. On networks that do not use these legacy IPv6 tunneling technologies, the service runs permanently in the background for no benefit.",
+    category: "services",
+    isActive: false,
+    warning: "If you rely on automatic IPv6 tunnel connectivity (Teredo/6to4) for Xbox Live or specific VPN setups, this may affect those connections.",
+    featureBreaks: "IPv6 tunneling assistance and automatic transition technology management disabled. Native IPv4 and IPv6 connections are unaffected."
+  },
+  {
+    title: "Disable Diagnostic Policy Service (DPS)",
+    description: "Disables the Diagnostic Policy Service which detects and troubleshoots network, disk, and other component problems, and presents Windows troubleshooter suggestions. The service runs constant background checks using CPU resources. On a stable, well-configured gaming PC these automated diagnostics add overhead with no practical benefit.",
+    category: "services",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Windows automatic troubleshooters will not run. Network diagnostics and the 'Diagnose this problem' feature in right-click menus disabled."
+  },
+  {
+    title: "Disable Connected Devices Platform (CDPSvc)",
+    description: "Disables the Connected Devices Platform service which powers cross-device features: Nearby Sharing, Continue on PC, cross-device clipboard, and Bluetooth device pairing workflows. On a gaming PC where you don't need to share files to nearby devices or continue tasks from your phone, this service runs for no purpose.",
+    category: "services",
+    isActive: false,
+    warning: "Do NOT disable if you use Windows Nearby Sharing, Continue on PC, or cross-device clipboard with your phone or other devices.",
+    featureBreaks: "Nearby Sharing, Continue on PC, cross-device clipboard, and some Bluetooth pairing workflows disabled. No effect on normal internet, gaming, or file transfers."
+  },
+
+  // ── PERFORMANCE (additional) ─────────────────────────────────────────────
+  {
+    title: "Clear Page File on Shutdown",
+    description: "Configures Windows to zero out the page file (virtual memory swap file) every time the PC shuts down. This prevents sensitive data that was in RAM (passwords, encryption keys, document contents) from persisting in the page file on disk after shutdown. Also ensures a clean page file state on every boot.",
+    category: "performance",
+    isActive: false,
+    warning: "Adds a few seconds to shutdown time as Windows clears the page file. Only noticeable on systems with large page files.",
+    featureBreaks: "Shutdown takes slightly longer. Page file is wiped clean on every shutdown — improves security and ensures fresh virtual memory on boot."
+  },
+  {
+    title: "Disable Transparency Effects",
+    description: "Turns off Windows transparency/blur effects on the taskbar, Start menu, and notification center. Transparency effects require the Desktop Window Manager to continuously blend and composite layers, consuming GPU and CPU resources every frame. Disabling them frees this overhead and can reduce micro-stutters caused by DWM composition.",
+    category: "performance",
+    isActive: false,
+    warning: null,
+    featureBreaks: "Taskbar, Start menu, and Action Center become fully opaque instead of translucent/blurred. Visual appearance change only — no functional effect."
   },
 ];
