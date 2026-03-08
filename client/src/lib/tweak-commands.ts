@@ -1335,6 +1335,118 @@ Remove-Item "HKCU:\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Wind
 reg add "HKCU\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags\\AllFolders\\Shell" /v FolderType /t REG_SZ /d "NotSpecified" /f`,
     disable: `reg delete "HKCU\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags\\AllFolders\\Shell" /v FolderType /f 2>$null`,
   },
+
+  // ── GAMING (Razer Cortex Speed Up style) ──────────────────────────────────
+
+  "Disable USB Selective Suspend": {
+    requiresAdmin: true,
+    enable: `# Disable USB Selective Suspend on active power plan (AC + DC)
+$usbGuid = "2a737441-1930-4402-8d77-b2bebba308a3"
+$usbSub  = "48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
+powercfg /SETACVALUEINDEX SCHEME_CURRENT $usbGuid $usbSub 0 2>$null
+powercfg /SETDCVALUEINDEX SCHEME_CURRENT $usbGuid $usbSub 0 2>$null
+powercfg /apply 2>$null`,
+    disable: `$usbGuid = "2a737441-1930-4402-8d77-b2bebba308a3"
+$usbSub  = "48e6b7a6-50f5-4782-a5d4-53bb8f07e226"
+powercfg /SETACVALUEINDEX SCHEME_CURRENT $usbGuid $usbSub 1 2>$null
+powercfg /SETDCVALUEINDEX SCHEME_CURRENT $usbGuid $usbSub 1 2>$null
+powercfg /apply 2>$null`,
+  },
+
+  "Set TSC Sync Policy (Precise Game Timing)": {
+    requiresAdmin: true,
+    requiresRestart: true,
+    enable: `bcdedit /set tscsyncpolicy Enhanced 2>$null`,
+    disable: `bcdedit /deletevalue tscsyncpolicy 2>$null`,
+  },
+
+  "Disable GameInput Service (gaminputsvc)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name gaminputsvc -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name gaminputsvc -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name gaminputsvc -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  // ── NETWORK (Razer Cortex Speed Up style) ─────────────────────────────────
+
+  "Enable TCP Fast Open": {
+    requiresAdmin: true,
+    enable: `netsh int tcp set global fastopen=enabled 2>$null
+netsh int tcp set global fastopenfallback=enabled 2>$null`,
+    disable: `netsh int tcp set global fastopen=disabled 2>$null
+netsh int tcp set global fastopenfallback=disabled 2>$null`,
+  },
+
+  "Disable NIC Interrupt Moderation": {
+    requiresAdmin: true,
+    enable: `# Disable Interrupt Moderation on all physical adapters
+Get-NetAdapter -Physical -ErrorAction SilentlyContinue | ForEach-Object {
+  $n = $_.Name
+  Set-NetAdapterAdvancedProperty -Name $n -RegistryKeyword "*InterruptModeration" -RegistryValue 0 -ErrorAction SilentlyContinue
+  Set-NetAdapterAdvancedProperty -Name $n -DisplayName "Adaptive Inter-Frame Spacing" -DisplayValue "Disabled" -ErrorAction SilentlyContinue
+}`,
+    disable: `Get-NetAdapter -Physical -ErrorAction SilentlyContinue | ForEach-Object {
+  Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*InterruptModeration" -RegistryValue 1 -ErrorAction SilentlyContinue
+}`,
+  },
+
+  // ── SERVICES (Windows Service Optimization) ────────────────────────────────
+
+  "Disable Secondary Logon (seclogon)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name seclogon -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name seclogon -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name seclogon -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  "Disable WMI Performance Adapter (wmiApSrv)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name wmiApSrv -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name wmiApSrv -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name wmiApSrv -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  "Disable TCP/IP NetBIOS Helper (lmhosts)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name lmhosts -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name lmhosts -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name lmhosts -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  "Disable Telephony Service (TapiSrv)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name TapiSrv -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name TapiSrv -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name TapiSrv -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  "Disable Still Image Service (StiSvc)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name StiSvc -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name StiSvc -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name StiSvc -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  "Disable Bluetooth Support Service (bthserv)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name bthserv -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name bthserv -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name bthserv -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  "Disable Net.TCP Port Sharing (NetTcpPortSharing)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name NetTcpPortSharing -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name NetTcpPortSharing -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name NetTcpPortSharing -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
+
+  "Disable Remote Access Manager (RasMan)": {
+    requiresAdmin: true,
+    enable: `Set-Service -Name RasMan -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name RasMan -Force -ErrorAction SilentlyContinue`,
+    disable: `Set-Service -Name RasMan -StartupType Manual -ErrorAction SilentlyContinue`,
+  },
 };
 
 export function getTweakCommand(title: string): TweakCommand | null {
