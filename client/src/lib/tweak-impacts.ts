@@ -117,6 +117,34 @@ export const TWEAK_IMPACTS: Record<string, ImpactLevel> = {
   "Disable Peer Name Resolution (PNRPsvc)":        "Low",
   "Disable Peer Networking (p2psvc)":              "Low",
   "Disable Peer Networking Identity (p2pimsvc)":   "Low",
+
+  // Debloat (individual)
+  "Uninstall OneDrive":                            "High",
+  "Disable Windows Widgets":                       "Medium",
+  "Disable Consumer Features & Silent App Installs": "Medium",
+  "Enable End Task in Taskbar Right-Click":        "Low",
+  "Show Hidden Files & File Extensions":           "Low",
+  "Remove Home & Gallery from Explorer":           "Low",
+  "Disable Storage Sense":                         "Low",
+  "Disable Sticky Keys Shortcut":                  "Low",
+  "Apply Windows Dark Theme":                      "Low",
+
+  // Gaming (additional)
+  "Disable Teredo IPv6 Tunneling":                 "Medium",
+  "Disable HPET (Platform Clock)":                 "Medium",
+  "Disable Auto-Restart After Windows Updates":    "Medium",
+
+  // Network (additional)
+  "Disable 6to4 & ISATAP Tunneling":               "Low",
+
+  // Services (additional)
+  "Disable IP Helper Service (iphlpsvc)":          "Low",
+  "Disable Diagnostic Policy Service (DPS)":       "Low",
+  "Disable Connected Devices Platform (CDPSvc)":   "Low",
+
+  // Performance (additional)
+  "Clear Page File on Shutdown":                   "Medium",
+  "Disable Transparency Effects":                  "Low",
 };
 
 export function getImpact(title: string): ImpactLevel | null {
