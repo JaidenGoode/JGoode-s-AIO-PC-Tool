@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { runUtility, getSystemInfo } from "@/lib/api";
@@ -70,7 +70,6 @@ export default function Utilities() {
   const [windowsUpdateMode, setWindowsUpdateMode] = useState(() => localStorage.getItem("util_win_update") || "windows-update-default");
   const [showSystemInfo, setShowSystemInfo] = useState(false);
   const [shutup10Status, setShutup10Status] = useState<"idle" | "downloading" | "done" | "error">("idle");
-  const shutup10CleanupRef = useRef<(() => void) | null>(null);
 
   const utilityMutation = useMutation({
     mutationFn: (action: string) => runUtility(action) as Promise<{ name: string; description: string; output?: string; message?: string }>,
@@ -94,52 +93,41 @@ export default function Utilities() {
 
   const launchShutUp10 = async () => {
     if (!window.electronAPI?.runScript) {
-      toast({ title: "Desktop app required", description: "O&O ShutUp10++ can only launch from the installed desktop app.", variant: "destructive" });
+      toast({
+        title: "Desktop app required",
+        description: "O&O ShutUp10++ can only launch from the installed desktop app.",
+        variant: "destructive",
+      });
       return;
     }
     setShutup10Status("downloading");
-    const script = `
-$url  = "https://dl5.oo-software.com/files/ooshutup10/OOSU10.exe"
-$dest = "$env:TEMP\\OOSU10.exe"
-if (-not (Test-Path $dest)) {
-  Write-Host "Downloading O&O ShutUp10++..."
-  try {
-    Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -TimeoutSec 60
-    Write-Host "Download complete."
-  } catch {
-    Write-Host "Download failed: $_"
-    exit 1
-  }
-} else {
-  Write-Host "OOSU10.exe already cached, launching..."
-}
-Start-Process $dest
-Write-Host "Launched."`;
-
-    shutup10CleanupRef.current = window.electronAPI.onScriptOutput((data) => {
-      if (data.type === "done") {
-        shutup10CleanupRef.current?.();
-        shutup10CleanupRef.current = null;
-        if (data.code === 0) {
-          setShutup10Status("done");
-          toast({ title: "O&O ShutUp10++ launched", description: "The app window should appear momentarily." });
-        } else {
-          setShutup10Status("error");
-          toast({ title: "Launch failed", description: "Could not download or launch ShutUp10++.", variant: "destructive" });
-        }
-        setTimeout(() => setShutup10Status("idle"), 4000);
-      }
-    });
+    const script = [
+      `$dest = "$env:TEMP\\OOSU10.exe"`,
+      `if (-not (Test-Path $dest)) {`,
+      `  try {`,
+      `    (New-Object System.Net.WebClient).DownloadFile("https://dl5.oo-software.com/files/ooshutup10/OOSU10.exe", $dest)`,
+      `  } catch {`,
+      `    Write-Host "Download failed: $_"`,
+      `    exit 1`,
+      `  }`,
+      `}`,
+      `Start-Process -FilePath $dest`,
+    ].join("\r\n");
 
     try {
-      await window.electronAPI.runScript(script);
+      const result = await window.electronAPI.runScript(script);
+      if (result.success) {
+        setShutup10Status("done");
+        toast({ title: "O&O ShutUp10++ launched", description: "The app window should appear momentarily." });
+      } else {
+        setShutup10Status("error");
+        toast({ title: "Launch failed", description: "Could not download or launch ShutUp10++. Check your internet connection.", variant: "destructive" });
+      }
     } catch {
-      shutup10CleanupRef.current?.();
-      shutup10CleanupRef.current = null;
       setShutup10Status("error");
       toast({ title: "Launch failed", description: "Script execution error.", variant: "destructive" });
-      setTimeout(() => setShutup10Status("idle"), 3000);
     }
+    setTimeout(() => setShutup10Status("idle"), 4000);
   };
 
   const handleToggle = (key: string, action: string, value: boolean, setter: (v: boolean) => void) => {
