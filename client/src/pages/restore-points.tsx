@@ -38,7 +38,7 @@ export default function RestorePoints() {
   return (
     <div className="space-y-5 pb-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight" data-testid="text-page-header">
+        <h1 className="text-2xl font-black text-foreground tracking-tight" data-testid="text-page-header">
           Restore <span className="text-primary">Points</span>
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">Always create a restore point before applying tweaks</p>
@@ -63,7 +63,7 @@ export default function RestorePoints() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.06 }}
-          className="p-5 rounded-xl border border-border bg-card space-y-4"
+          className="p-5 rounded-xl border border-border bg-card card-premium space-y-4"
         >
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-lg bg-primary/10">
@@ -111,7 +111,7 @@ export default function RestorePoints() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.10 }}
-          className="p-5 rounded-xl border border-border bg-card space-y-4"
+          className="p-5 rounded-xl border border-border bg-card card-premium space-y-4"
         >
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-lg bg-primary/10">
