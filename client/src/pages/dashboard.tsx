@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Cpu, MemoryStick, Monitor, HardDrive, Wrench,
   ArrowRight, Thermometer, Zap, ShieldCheck, Activity, Sparkles, Info,
+  Globe, Settings as SettingsIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
@@ -360,7 +361,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="p-4 rounded-xl border border-border bg-card"
+          className="p-4 rounded-xl border border-border bg-card card-premium"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -408,7 +409,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.24 }}
-          className="p-4 rounded-xl border border-border bg-card"
+          className="p-4 rounded-xl border border-border bg-card card-premium"
         >
           <div className="flex items-center gap-2 mb-4">
             <div className="p-1.5 rounded-lg bg-primary/10">
@@ -468,7 +469,7 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.28 }}
-        className="p-4 rounded-xl border border-border bg-card"
+        className="p-4 rounded-xl border border-border bg-card card-premium"
       >
         <div className="flex items-center gap-2 mb-4">
           <div className="p-1.5 rounded-lg bg-primary/10">
@@ -483,9 +484,9 @@ export default function Dashboard() {
             { href: "/cleaner",   icon: Sparkles,    label: "Cleaner",      desc: "Remove junk" },
             { href: "/tweaks",    icon: Wrench,      label: "Tweaks",       desc: "Optimize Windows" },
             { href: "/utilities", icon: Activity,    label: "Utilities",    desc: "System tools" },
-            { href: "/dns",       icon: HardDrive,   label: "DNS",          desc: "DNS settings" },
-            { href: "/restore",   icon: ShieldCheck, label: "Restore",      desc: "System protection" },
-            { href: "/settings",  icon: Cpu,         label: "Settings",     desc: "App preferences" },
+            { href: "/dns",       icon: Globe,         label: "DNS",          desc: "DNS settings" },
+            { href: "/restore",   icon: ShieldCheck,  label: "Restore",      desc: "System protection" },
+            { href: "/settings",  icon: SettingsIcon, label: "Settings",     desc: "App preferences" },
           ].map(({ href, icon: Icon, label, desc }) => (
             <Link key={href} href={href}>
               <div
