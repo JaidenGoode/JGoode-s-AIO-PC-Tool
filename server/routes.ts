@@ -820,6 +820,8 @@ $d['Disable Connected Devices Platform (CDPSvc)']=csvc 'CDPSvc'
 # Performance (additional)
 $d['Clear Page File on Shutdown']=creg 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management' 'ClearPageFileAtShutdown' 1
 $d['Disable Transparency Effects']=creg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' 'EnableTransparency' 0
+$d['Disable Windows Platform Binary Table (WPBT)']=creg 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\WPBT' 'Disable' 1
+try{$ft=(Get-ItemProperty 'HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell' 'FolderType' -EA Stop).FolderType;$d['Disable Automatic Explorer Folder Discovery']=if($ft -eq 'NotSpecified'){1}else{0}}catch{$d['Disable Automatic Explorer Folder Discovery']=0}
 
 $d | ConvertTo-Json -Compress`;
 
