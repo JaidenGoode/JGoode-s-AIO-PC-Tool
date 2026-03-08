@@ -149,6 +149,25 @@ export const TWEAK_IMPACTS: Record<string, ImpactLevel> = {
   // Debloat (additional)
   "Disable Windows Platform Binary Table (WPBT)":  "Low",
   "Disable Automatic Explorer Folder Discovery":   "Low",
+
+  // Gaming (Razer Cortex Speed Up style)
+  "Disable USB Selective Suspend":                 "Medium",
+  "Set TSC Sync Policy (Precise Game Timing)":     "Medium",
+  "Disable GameInput Service (gaminputsvc)":       "Low",
+
+  // Network (Razer Cortex Speed Up style)
+  "Enable TCP Fast Open":                          "Medium",
+  "Disable NIC Interrupt Moderation":              "Medium",
+
+  // Services (Windows Service Optimization)
+  "Disable Secondary Logon (seclogon)":            "Low",
+  "Disable WMI Performance Adapter (wmiApSrv)":   "Low",
+  "Disable TCP/IP NetBIOS Helper (lmhosts)":      "Low",
+  "Disable Telephony Service (TapiSrv)":          "Low",
+  "Disable Still Image Service (StiSvc)":         "Low",
+  "Disable Bluetooth Support Service (bthserv)":  "Low",
+  "Disable Net.TCP Port Sharing (NetTcpPortSharing)": "Low",
+  "Disable Remote Access Manager (RasMan)":        "Low",
 };
 
 export function getImpact(title: string): ImpactLevel | null {
