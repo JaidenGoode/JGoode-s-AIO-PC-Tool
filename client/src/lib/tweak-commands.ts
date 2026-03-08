@@ -1319,6 +1319,22 @@ Stop-Service -Name CDPSvc -Force -ErrorAction SilentlyContinue`,
     enable: `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v EnableTransparency /t REG_DWORD /d 0 /f`,
     disable: `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v EnableTransparency /t REG_DWORD /d 1 /f`,
   },
+
+  "Disable Windows Platform Binary Table (WPBT)": {
+    requiresAdmin: true,
+    enable: `reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\WPBT" /v Disable /t REG_DWORD /d 1 /f`,
+    disable: `reg delete "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\WPBT" /v Disable /f 2>nul`,
+  },
+
+  "Disable Automatic Explorer Folder Discovery": {
+    requiresAdmin: false,
+    enable: `# Clear existing folder type memory
+Remove-Item "HKCU:\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "HKCU:\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\BagMRU" -Recurse -Force -ErrorAction SilentlyContinue
+# Lock all folders to generic (non-auto-detected) view
+reg add "HKCU\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags\\AllFolders\\Shell" /v FolderType /t REG_SZ /d "NotSpecified" /f`,
+    disable: `reg delete "HKCU\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\Bags\\AllFolders\\Shell" /v FolderType /f 2>nul`,
+  },
 };
 
 export function getTweakCommand(title: string): TweakCommand | null {
