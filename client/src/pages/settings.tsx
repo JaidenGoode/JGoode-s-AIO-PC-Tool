@@ -47,7 +47,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-8 pb-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight" data-testid="text-settings-header">
+        <h1 className="text-2xl font-black text-foreground tracking-tight" data-testid="text-settings-header">
           App <span className="text-primary">Settings</span>
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">Customize your preferences</p>
